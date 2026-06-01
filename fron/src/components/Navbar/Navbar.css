@@ -1,0 +1,34 @@
+/* Estilos externos para la barra de navegación */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0056b3; /* Azul institucional hospitalario */
+    padding: 15px 30px;
+    color: white;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.navbar-menu {
+    display: flex;
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar-item {
+    cursor: pointer;
+    font-size: 1rem;
+    transition: color 0.2s;
+}
+
+.navbar-item:hover {
+    color: #d1ecf1; /* Cambio de color sutil al pasar el mouse */
+}
