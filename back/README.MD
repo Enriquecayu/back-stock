@@ -35,8 +35,8 @@ back
 │   ├── raciones.routes.js   # Endpoints para el módulo de raciones
 │   ├── kardex.routes.js     # Endpoints para el flujo FIFO y reportes analíticos
 │   └── ...
-├── .env.example             # Plantilla de variables de entorno (DB_USER, DB_PASS, etc.)
-└── app.js                   # Punto de entrada del servidor Express
+├── .env                     # Plantilla de variables de entorno (DB_USER, DB_PASS, etc.)
+└── server.js                # Punto de entrada del servidor Express
 
 ⚙️ Funcionamiento Clave y Reglas de Negocio
 La API REST se diferencia por implementar lógica avanzada de control de gestión y consistencia de datos:
@@ -89,27 +89,65 @@ Body requerido: { "motivo": "Se cargó por duplicado por error del operador." }
 PATCH /api/raciones/restaurar/:id - Reactiva una ración oculta devolviendo el campo deletedAt a null.
 
 🛠️ Instalación y Configuración Local
+PASO 1: 
 Clonar el repositorio:
 
-Bash
-git clone [https://github.com/tu-usuario/centinela.git](https://github.com/tu-usuario/centinela.git)
-cd centinela
-Configurar Variables de Entorno:
-Duplicar el archivo .env.example, renombrarlo a .env y configurar las credenciales de la base de datos local de PostgreSQL:
+deben entrar a su terminal de git(bash) y en alguna carpeta dentro de la terminal deben ejecutar: 
+git clone https://github.com/Enriquecayu/pryecto_stock.git
 
-Fragmento de código
+luego de clonar y que todo salio bien deberan ver una carpeta nueva llamada "proyecto_stock" deben entrar:
+
+cd "proyecto_stock"
+
+PASO 2: 
+Instalar dependencias:
+deben entrar a la carpeta back y ejecutan en la raiz de back:
+
+npm install 
+
+al ejecutar ese comando se instalaran las dependencias que utiliza la API como sequelize, express, dotenv, etc.
+
+
+PASO 3:
+Configurar Variables de Entorno:
+En la raiz de back deben crear un archivo llamado ".env" este archivo sirve para configurar nuestras variables de entorno y lo deben completar de la siguiente manera:
+
+antes de completar los datos deberan haber creado una base de datos en pgadmin ya que en esa base de datos se crearan las tablas definidas. Deben recordar el nombre de la base de dato, su usuario que normalmente siempre es: "postgres" y su contraseña(la que les pide cuando entran a pgadmin). cuando tengan todos los datos deben completar las variables de entorno con esos datos, las variables que estan completas se las deja como estan.
 
 PORT=3001
-DB_USER=tu_usuario
-DB_PASS=tu_contraseña
-DB_NAME=hospital_db
-DB_HOST=127.0.0.1
-Instalar dependencias:
+DB_USER=
+DB_PASS=
+DB_HOST=localhost
+DB_NAME=
+DB_PORT=5432
 
-Bash
-npm install
+una vez configurado las variables la api esta lista para iniciar.
+
+IMPORTANTE: 
+antes de iniciar el servidor deben de cambiar algo en el codigo por unica vez:
+"await sequelize.sync({ alter: true });"
+
+deben buscar ese fragemnto de codigo que se encuentra dentro de back/server.js y remplazarlo por: 
+"await sequelize.sync({ force: true });"
+
+luego de cambiarlo de "alter" a "force" deben guardar el cambio.
+
+PASO 4:
 Iniciar el servidor de desarrollo:
+para iniciar el servidor deben dirijirse a su terminal de git(bash) y en la raiz de la carpeta "back" ejecutar:
 
-Bash
 npm run dev
+
 El servidor backend se levantará por defecto en: http://localhost:3001
+
+luego de que vean un mensaje como este: 
+
+CONEXION EXITOSA A POSTGRES
+TABLAS SINCRONIZADAS CON PG
+SERVIDOR CORRIENDO EN http://localhost:3001
+
+ya sabran que a finalizado correctamente todo :)
+
+para probar pueden abrir el navegador y buscar http://localhost:3001/
+
+si ven un mensaj que dice: "Cannot GET /" es porque todo esta bien y la API esta andando perfectamente.
