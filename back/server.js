@@ -7,6 +7,9 @@ import productoRoutes from './routes/producto.routes.js';
 import loteRoutes from "./routes/lote.routes.js";
 import racionRoutes from "./routes/racion.routes.js";
 import kardexRoutes from "./routes/kardex.routes.js";
+import consumoRoutes from './routes/consumo.routes.js';
+import menuRoutes from './routes/menu.routes.js';
+import planillaRoutes from './routes/planilla.routes.js';
 
 const app = express();
 
@@ -19,6 +22,10 @@ app.use('/api/productos', productoRoutes);
 app.use('/api/lotes', loteRoutes);
 app.use('/api/raciones', racionRoutes);
 app.use('/api/kardex', kardexRoutes);
+app.use('/api/consumos', consumoRoutes);
+app.use('/api/menus', menuRoutes);
+app.use('/api/planillas', planillaRoutes);
+
 const PORT = process.env.PORT || 3001;
 
 // Verificar conexión e iniciar servidor

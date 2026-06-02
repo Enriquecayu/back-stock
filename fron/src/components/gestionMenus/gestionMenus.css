@@ -1,0 +1,155 @@
+.container {
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 25px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-family: sans-serif;
+}
+
+.titulo {
+    color: #333333;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eeeeee;
+    padding-bottom: 10px;
+}
+
+.mensaje {
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.exito {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+}
+
+.formGroup label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #444444;
+}
+
+.inputControl {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.inputControl:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+.fieldset {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 25px;
+    background-color: #f9f9f9;
+}
+
+.fieldset legend {
+    font-weight: 600;
+    padding: 0 10px;
+    color: #555555;
+}
+
+.rowInputs {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.colProducto {
+    flex: 2;
+}
+
+.colCantidad {
+    flex: 1;
+}
+
+.btnSecundario {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.btnSecundario:hover {
+    background-color: #0056b3;
+}
+
+.tabla {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 25px;
+    margin-top: 10px;
+}
+
+.tabla th {
+    background-color: #f2f2f2;
+    text-align: left;
+    padding: 10px;
+    font-weight: 600;
+    color: #555555;
+    border-bottom: 2px solid #ddd;
+}
+
+.tabla td {
+    padding: 10px;
+    border-bottom: 1px solid #eeeeee;
+    color: #333333;
+}
+
+.btnEliminar {
+    color: #dc3545;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btnEliminar:hover {
+    text-decoration: underline;
+}
+
+.btnPrincipal {
+    width: 100%;
+    padding: 12px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btnPrincipal:hover {
+    background-color: #218838;
+}
