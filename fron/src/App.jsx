@@ -6,7 +6,8 @@ import Inventario from './components/Inventario/Inventario';
 import ConsumosForm from './components/ConsumosForm/ConsumosForm';
 import Kardex from './components/Kardex/Kardex';
 import GestionMenus from './components/gestionMenus/gestionMenus.jsx';
-import PlanillaDiaria from './components/planillaDiaria/planillaDiaria.jsx'; // 🎯 1. IMPORTAMOS TU NUEVO COMPONENTE ACÁ
+import PlanillaDiaria from './components/planillaDiaria/planillaDiaria.jsx';
+import ExportarPlanilla from './components/exportarPlanilla/ExportarPlanilla.jsx';
 import './App.css';
 
 function App() {
@@ -88,14 +89,23 @@ function App() {
               >
                 📋 Cargar Planilla Diaria
               </button>
+
+              {/* 🚀 2. NUEVO BOTÓN INTERNO PARA EL CIERRE MENSUAL */}
+              <button
+                className={`btn-nav-form ${subVistaRaciones === 'excel-mensual' ? 'active-producto' : ''}`}
+                onClick={() => setSubVistaRaciones('excel-mensual')}
+              >
+                📊 Descargar Cierre Mensual
+              </button>
             </div>
 
             {/* Renderizado interno de sub-vistas */}
             <div className="form-render-box">
               {subVistaRaciones === 'receta' && <GestionMenus />}
-
-              {/* 🎯 2. REEMPLAZADO EL DIV DE DESARROLLO POR TU COMPONENTE REAL CON AXIOS */}
               {subVistaRaciones === 'planilla' && <PlanillaDiaria />}
+
+              {/* 🚀 3. RENDERIZADO DEL COMPONENTE EXPORTADOR */}
+              {subVistaRaciones === 'excel-mensual' && <ExportarPlanilla />}
             </div>
           </div>
         )}
