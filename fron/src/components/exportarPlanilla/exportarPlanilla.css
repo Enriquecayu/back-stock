@@ -1,0 +1,107 @@
+.export-container {
+    max-width: 550px;
+    margin: 40px auto;
+    padding: 30px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+}
+
+.export-titulo {
+    font-size: 22px;
+    color: #1e293b;
+    margin-bottom: 4px;
+    font-weight: 700;
+}
+
+.export-sub {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 24px;
+    line-height: 1.4;
+}
+
+.export-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.export-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.export-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.export-select {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-size: 14px;
+    background-color: #fff;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.export-select:focus {
+    border-color: #1e3a8a;
+    /* Azul al enfocar */
+}
+
+.export-row-fechas {
+    display: flex;
+    gap: 16px;
+}
+
+.export-btn {
+    margin-top: 10px;
+    padding: 12px;
+    background-color: #10b981;
+    /* Verde Excel */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.export-btn:hover:not(:disabled) {
+    background-color: #059669;
+}
+
+.export-btn:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* Clases de feedback para alertas */
+.export-mensaje {
+    padding: 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+
+.export-mensaje.error {
+    background-color: #fef2f2;
+    border-left: 4px solid #ef4444;
+    color: #991b1b;
+}
+
+.export-mensaje.exito {
+    background-color: #f0fdf4;
+    border-left: 4px solid #22c55e;
+    color: #166534;
+}
