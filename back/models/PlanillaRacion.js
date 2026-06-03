@@ -12,9 +12,17 @@ const PlanillaRacion = sequelize.define('PlanillaRacion', {
         allowNull: false // ID del plato que la encargada eligió cocinar
     },
     fecha: {
-        type: DataTypes.DATEONLY, // Guarda solo la fecha (AAAA-MM-DD) sin la hora, ideal para balances diarios
+        type: DataTypes.DATEONLY, // Guarda solo la fecha (AAAA-MM-DD) sin la hora
         allowNull: false,
         defaultValue: DataTypes.NOW
+    },
+    turno: {
+        type: DataTypes.ENUM('D', 'A', 'M', 'C'), // D: Desayuno, A: Almuerzo, M: Merienda, C: Cena
+        allowNull: false
+    },
+    tipoDestinatario: {
+        type: DataTypes.STRING(100), // 🎯 CAMBIADO: Ahora es un texto libre para que elijan o escriban cualquier área/destino
+        allowNull: false
     },
     cantidadRaciones: {
         type: DataTypes.INTEGER,
@@ -22,7 +30,7 @@ const PlanillaRacion = sequelize.define('PlanillaRacion', {
     },
     observaciones: {
         type: DataTypes.STRING(255),
-        allowNull: true // Opcional, por si quieren poner una nota (ej: "Se cocinó de más por guardias de refuerzo")
+        allowNull: true // Opcional para notas de la jornada
     }
 }, {
     tableName: 'planilla_raciones',

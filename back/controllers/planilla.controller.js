@@ -8,11 +8,14 @@ export const registrarPlanillaDiaria = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
-        const { idMenu, cantidadRaciones, observaciones } = req.body;
+        // 🎯 Agregamos 'turno' y 'tipoDestinatario' a la desestructuración del cuerpo del request
+        const { idMenu, cantidadRaciones, observaciones, turno, tipoDestinatario } = req.body;
 
-        // Validaciones iniciales
-        if (!idMenu || !cantidadRaciones || parseInt(cantidadRaciones) <= 0) {
-            return res.status(400).json({ mensaje: 'Debe especificar un menú válido y una cantidad de raciones mayor a cero.' });
+        // Validaciones iniciales (sumamos los nuevos campos requeridos)
+        if (!idMenu || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !tipoDestinatario) {
+            return res.status(400).json({
+                mensaje: 'Debe especificar menú, cantidad de raciones válida, turno y tipo de destinatario.'
+            });
         }
 
         // Verificar que el menú exista y traer su receta completa con los datos del producto
@@ -35,12 +38,14 @@ export const registrarPlanillaDiaria = async (req, res) => {
             return res.status(400).json({ mensaje: 'Este menú no tiene ingredientes cargados en su receta. No se puede calcular el consumo.' });
         }
 
-        // Crear el registro maestro de la Planilla Diaria
+        // Crear el registro maestro de la Planilla Diaria con TODOS los campos obligatorios
         const nuevaPlanilla = await PlanillaRacion.create({
             idMenu,
             cantidadRaciones: parseInt(cantidadRaciones),
             observaciones: observaciones?.trim() || null,
-            fecha: new Date()
+            fecha: new Date(),
+            turno,              // 🎯 Inyectado a la base de datos
+            tipoDestinatario    // 🎯 Inyectado a la base de datos
         }, { transaction: t });
 
         // 🔄 RECORRER CADA INGREDIENTE DE LA RECETA Y APLICAR EL FIFO
@@ -85,7 +90,7 @@ export const registrarPlanillaDiaria = async (req, res) => {
                     // Caso A: Al lote le alcanza para cubrir lo que falta
                     cantidadADescontarDeEsteLote = cantidadPendientePorDescontar;
                     lote.cantidadActual = stockLote - cantidadPendientePorDescontar;
-                    cantidadPendientePorDescontar = 0; // 🎯 CORREGIDO: Eliminada la variable fantasma en inglés
+                    cantidadPendientePorDescontar = 0;
                 } else {
                     // Caso B: El lote no alcanza, se vacía a 0 y pasa al siguiente lote
                     cantidadADescontarDeEsteLote = stockLote;
@@ -103,7 +108,7 @@ export const registrarPlanillaDiaria = async (req, res) => {
                     cantidad: cantidadADescontarDeEsteLote,
                     precioUnitarioHistorico: parseFloat(lote.precioUnitario),
                     fechaMovimiento: new Date(),
-                    detalle: `Consumo automático Planilla Raciones - Menú: ${menuConReceta.nombre} (Planilla #${nuevaPlanilla.id}) para ${cantidadRaciones} personas.`
+                    detalle: `Consumo automático Planilla Raciones - Menú: ${menuConReceta.nombre} (Planilla #${nuevaPlanilla.id}, Turno: ${turno}) para ${cantidadRaciones} personas.`
                 }, { transaction: t });
             }
         }

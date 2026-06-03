@@ -1,6 +1,5 @@
 import Producto from './Producto.js';
 import LoteStock from './LoteStock.js';
-import RegistroRacion from './RegistroRacion.js';
 import Kardex from './Kardex.js';
 import Consumo from './Consumo.js';
 import Menu from './Menu.js';
@@ -38,11 +37,10 @@ MenuIngrediente.belongsTo(Producto, { foreignKey: 'idProducto', as: 'producto' }
 Menu.hasMany(PlanillaRacion, { foreignKey: 'idMenu', as: 'historialCocina' });
 PlanillaRacion.belongsTo(Menu, { foreignKey: 'idMenu', as: 'menu' });
 
-// Exportamos todos los modelos unificados
+// Exportamos todos los modelos unificados (Ya sin RegistroRacion)
 export {
     Producto,
     LoteStock,
-    RegistroRacion,
     Kardex,
     Consumo,
     Menu,
