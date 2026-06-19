@@ -23,7 +23,11 @@ const Consumo = sequelize.define('Consumo', {
     detalle: {
         type: DataTypes.STRING(255),
         allowNull: true
-    }
+    },
+    idUsuario: {
+        type: DataTypes.INTEGER,
+        allowNull: false // Todo consumo debe ser cargado por alguien logueado
+    },
 }, {
     tableName: 'consumos',
     timestamps: true // Te crea createdAt y updatedAt automáticamente
