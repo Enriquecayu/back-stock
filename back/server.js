@@ -1,10 +1,13 @@
+// server.js
 import express from 'express';
 import cors from 'cors';
 import sequelize from './config/database.js';
-// 🎯 MODIFICADO: Ya no importamos RegistroRacion
-import { Producto, LoteStock, Kardex, PlanillaRacion, Consumo, Menu, MenuIngrediente } from "./models/index.js";
 
-// IMPORT DE RUTAS (🎯 MODIFICADO: Eliminamos la línea de racion.routes.js)
+// 🎯 IMPORTANTE: Agregamos el modelo 'Usuario' a las importaciones estructurales
+import { Producto, LoteStock, Kardex, PlanillaRacion, Consumo, Menu, MenuIngrediente, Usuario } from "./models/index.js";
+
+// IMPORT DE RUTAS
+import usuarioRoutes from './routes/usuario.routes.js'; // 🎯 NUEVO: Importamos las rutas de autenticación
 import productoRoutes from './routes/producto.routes.js';
 import loteRoutes from "./routes/lote.routes.js";
 import kardexRoutes from "./routes/kardex.routes.js";
@@ -14,11 +17,12 @@ import planillaRoutes from './routes/planilla.routes.js';
 
 const app = express();
 
-// Middlewares
+// Middlewares globales
 app.use(cors());
 app.use(express.json());
 
-// CONECTAR LAS RUTAS EN EXPRESS (🎯 MODIFICADO: Eliminamos la ruta /api/raciones)
+// CONECTAR LAS RUTAS EN EXPRESS
+app.use('/api/usuarios', usuarioRoutes); // 🎯 NUEVO: Endpoint para Login y Registro
 app.use('/api/productos', productoRoutes);
 app.use('/api/lotes', loteRoutes);
 app.use('/api/kardex', kardexRoutes);
@@ -34,16 +38,17 @@ async function main() {
         await sequelize.authenticate();
         console.log("CONEXION EXITOSA A POSTGRES");
 
-        // 🎯 MODIFICADO: Volvemos a 'alter: true' porque el force ya limpió los esquemas viejos.
-        // De esta forma, tus nuevos productos, lotes y recetas no se borrarán al reiniciar nodemon.
+        // 🚀 Mantenemos 'alter: true'. Al leer el archivo de modelos modificado, 
+        // PostgreSQL creará automáticamente la tabla 'usuarios' y añadirá las columnas
+        // 'idUsuario' requeridas en 'planillas' y 'consumos' sin alterar tus datos actuales.
         await sequelize.sync({ alter: true });
-        console.log("TABLAS SINCRONIZADAS CON PG");
+        console.log("BASE DE DATOS SINCRONIZADA CON DIRECTIVAS DE SEGURIDAD");
 
         app.listen(PORT, () => {
-            console.log(`SERVIDOR CORRIENDO EN http://localhost:${PORT}`);
+            console.log(`SERVIDOR CORRIENDO EN EL PUERTO: ${PORT}`);
         });
     } catch (error) {
-        console.error("ERROR AL SINCRONIZAR", error);
+        console.error("ERROR CRITICO AL INICIAR EL SERVIDOR:", error);
     }
 }
 

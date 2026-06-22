@@ -1,9 +1,12 @@
+// routes/planilla.routes.js
 import { Router } from 'express';
 import { registrarPlanillaDiaria, getHistorialPlanillas } from '../controllers/planilla.controller.js';
+import { verificarToken, puedeRegistrarConsumo } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.post('/', registrarPlanillaDiaria); // POST /api/planillas -> Procesa la cocina del día y aplica FIFO
-router.get('/', getHistorialPlanillas);    // GET /api/planillas  -> Muestra el historial de planillas hechas
+// ✅ Permiso Compartido: Cargar las planillas de raciones diarias (descuento FIFO) y ver su historial
+router.post('/', verificarToken, puedeRegistrarConsumo, registrarPlanillaDiaria); // POST /api/planillas
+router.get('/', verificarToken, puedeRegistrarConsumo, getHistorialPlanillas);    // GET /api/planillas
 
 export default router;
