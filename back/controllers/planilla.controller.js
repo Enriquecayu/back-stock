@@ -1,5 +1,5 @@
 import sequelize from '../config/database.js';
-import { PlanillaRacion, Menu, MenuIngrediente, LoteStock, Kardex, Producto } from '../models/index.js';
+import { PlanillaRacion, Menu, MenuIngrediente, LoteStock, Kardex, Producto, Usuario } from '../models/index.js';
 import { Op } from 'sequelize';
 
 // 1. PROCESAR PLANILLA DIARIA DE RACIONES CON DESCUENTO FIFO AUTOMÁTICO
@@ -8,10 +8,12 @@ export const registrarPlanillaDiaria = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
-        // 🎯 Agregamos 'turno' y 'tipoDestinatario' a la desestructuración del cuerpo del request
         const { idMenu, cantidadRaciones, observaciones, turno, tipoDestinatario } = req.body;
 
-        // Validaciones iniciales (sumamos los nuevos campos requeridos)
+        // 🎯 EXTRACCIÓN ULTRA SEGURA: Extraemos el ID del usuario directamente desde el Token JWT
+        const idUsuarioLogueado = req.usuario.id;
+
+        // Validaciones iniciales
         if (!idMenu || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !tipoDestinatario) {
             return res.status(400).json({
                 mensaje: 'Debe especificar menú, cantidad de raciones válida, turno y tipo de destinatario.'
@@ -23,92 +25,81 @@ export const registrarPlanillaDiaria = async (req, res) => {
             include: [{
                 model: MenuIngrediente,
                 as: 'ingredientes',
-                include: [{ model: Producto, as: 'producto', attributes: ['nombre', 'unidadMedida'] }]
+                include: [{ model: Producto, as: 'producto', attributes: ['nombre', 'stockMinimo'] }]
             }],
             transaction: t
         });
 
         if (!menuConReceta) {
             await t.rollback();
-            return res.status(404).json({ mensaje: 'El menú especificado no existe.' });
+            return res.status(404).json({ mensaje: 'El menú seleccionado no existe.' });
         }
 
-        if (!menuConReceta.ingredientes || menuConReceta.ingredientes.length === 0) {
-            await t.rollback();
-            return res.status(400).json({ mensaje: 'Este menú no tiene ingredientes cargados en su receta. No se puede calcular el consumo.' });
-        }
-
-        // Crear el registro maestro de la Planilla Diaria con TODOS los campos obligatorios
+        // 1. Guardar la cabecera de la planilla en 'planilla_raciones' firmada por el usuario
         const nuevaPlanilla = await PlanillaRacion.create({
             idMenu,
-            cantidadRaciones: parseInt(cantidadRaciones),
-            observaciones: observaciones?.trim() || null,
+            idUsuario: idUsuarioLogueado, // 🎯 Guardamos el responsable del registro
             fecha: new Date(),
-            turno,              // 🎯 Inyectado a la base de datos
-            tipoDestinatario    // 🎯 Inyectado a la base de datos
+            turno,
+            tipoDestinatario,
+            cantidadRaciones,
+            observaciones
         }, { transaction: t });
 
-        // 🔄 RECORRER CADA INGREDIENTE DE LA RECETA Y APLICAR EL FIFO
-        for (const ingrediente of menuConReceta.ingredientes) {
+        // 2. Iterar por cada ingrediente de la receta para descontar del stock físico
+        for (const ing of menuConReceta.ingredientes) {
+            const idProducto = ing.idProducto;
+            const cantidadRequeridaPorPersona = parseFloat(ing.cantidadPorPersona);
+            const cantidadTotalRequerida = cantidadRequeridaPorPersona * parseInt(cantidadRaciones);
 
-            // Calculamos cuánta mercadería total se necesita para todos los internos
-            const cantidadTotalNecesaria = parseFloat(ingrediente.cantidadPorPersona) * parseInt(cantidadRaciones);
-            let cantidadPendientePorDescontar = cantidadTotalNecesaria;
-
-            const nombreInsumo = ingrediente.producto?.nombre || `Insumo ID: ${ingrediente.idProducto}`;
-            const unidad = ingrediente.producto?.unidadMedida || '';
-
-            // Buscar todos los lotes disponibles de este producto ordenados por fecha de vencimiento (FIFO)
+            // Buscar lotes con stock activo ordenados por vencimiento (FIFO)
             const lotesDisponibles = await LoteStock.findAll({
                 where: {
-                    idProducto: ingrediente.idProducto,
+                    idProducto,
                     cantidadActual: { [Op.gt]: 0 }
                 },
                 order: [['fechaVencimiento', 'ASC']],
                 transaction: t
             });
 
-            // Calcular el stock total disponible sumando todos sus lotes
-            const stockTotalDisponible = lotesDisponibles.reduce((acc, lote) => acc + parseFloat(lote.cantidadActual), 0);
+            // Calcular stock total sumando lo disponible en todos sus lotes
+            const stockTotalDisponible = lotesDisponibles.reduce((suma, l) => suma + parseFloat(l.cantidadActual), 0);
 
-            // 🚨 VALIDACIÓN CRÍTICA: Si el depósito no tiene suficiente stock total para cubrir la receta, frenamos todo
-            if (stockTotalDisponible < cantidadTotalNecesaria) {
+            if (stockTotalDisponible < cantidadTotalRequerida) {
                 await t.rollback();
                 return res.status(400).json({
-                    mensaje: `Stock insuficiente en depósito para el insumo: "${nombreInsumo}". Se necesitan ${cantidadTotalNecesaria.toFixed(2)} ${unidad} pero solo hay ${stockTotalDisponible.toFixed(2)} ${unidad} en total.`
+                    mensaje: `Stock insuficiente para el insumo: "${ing.producto.nombre}". Requerido: ${cantidadTotalRequerida}, Disponible en sistema: ${stockTotalDisponible}. Operación cancelada.`
                 });
             }
 
-            // Algoritmo de descuento lote por lote (FIFO estricto)
+            let cantidadRestantePorDescontar = cantidadTotalRequerida;
+
             for (const lote of lotesDisponibles) {
-                if (cantidadPendientePorDescontar <= 0) break;
+                if (cantidadRestantePorDescontar <= 0) break;
 
                 const stockLote = parseFloat(lote.cantidadActual);
-                let cantidadADescontarDeEsteLote = 0;
+                let cantidadA_Descontar = 0;
 
-                if (stockLote >= cantidadPendientePorDescontar) {
-                    // Caso A: Al lote le alcanza para cubrir lo que falta
-                    cantidadADescontarDeEsteLote = cantidadPendientePorDescontar;
-                    lote.cantidadActual = stockLote - cantidadPendientePorDescontar;
-                    cantidadPendientePorDescontar = 0;
+                if (stockLote >= cantidadRestantePorDescontar) {
+                    cantidadA_Descontar = cantidadRestantePorDescontar;
+                    lote.cantidadActual = stockLote - cantidadA_Descontar;
+                    cantidadRestantePorDescontar = 0;
                 } else {
-                    // Caso B: El lote no alcanza, se vacía a 0 y pasa al siguiente lote
-                    cantidadADescontarDeEsteLote = stockLote;
-                    cantidadPendientePorDescontar -= stockLote;
+                    cantidadA_Descontar = stockLote;
                     lote.cantidadActual = 0;
+                    cantidadRestantePorDescontar -= cantidadA_Descontar;
                 }
 
-                // Guardamos el cambio de stock en el lote
                 await lote.save({ transaction: t });
 
-                // 🎯 Registramos el movimiento de SALIDA en el Kardex de Auditoría
+                // Asentar el movimiento en el historial contable del Kardex registrando qué usuario operó
                 await Kardex.create({
                     idLote: lote.id,
                     tipoMovimiento: 'Salida',
-                    cantidad: cantidadADescontarDeEsteLote,
-                    precioUnitarioHistorico: parseFloat(lote.precioUnitario),
+                    cantidad: cantidadA_Descontar,
+                    precioUnitarioHistorico: lote.precioUnitario,
                     fechaMovimiento: new Date(),
-                    detalle: `Consumo automático Planilla Raciones - Menú: ${menuConReceta.nombre} (Planilla #${nuevaPlanilla.id}, Turno: ${turno}) para ${cantidadRaciones} personas.`
+                    detalle: `Consumo automático Planilla Raciones - Menú: ${menuConReceta.nombre} (Planilla #${nuevaPlanilla.id}, Turno: ${turno}) por usuario ID: ${idUsuarioLogueado}.`
                 }, { transaction: t });
             }
         }
@@ -128,20 +119,27 @@ export const registrarPlanillaDiaria = async (req, res) => {
     }
 };
 
-// 2. LISTAR EL HISTORIAL DE LAS PLANILLAS DIARIAS
+// 2. LISTAR EL HISTORIAL DE LAS PLANILLAS DIARIAS (Con datos del usuario que registró)
 export const getHistorialPlanillas = async (req, res) => {
     try {
         const historial = await PlanillaRacion.findAll({
-            include: [{
-                model: Menu,
-                as: 'menu',
-                attributes: ['nombre']
-            }],
+            include: [
+                {
+                    model: Menu,
+                    as: 'menu',
+                    attributes: ['nombre']
+                },
+                {
+                    model: Usuario, // 🎯 Incluimos el modelo Usuario para auditar en el frontend
+                    as: 'usuario',
+                    attributes: ['nombreCompleto', 'rol']
+                }
+            ],
             order: [['fecha', 'DESC'], ['id', 'DESC']]
         });
         return res.status(200).json(historial);
     } catch (error) {
         console.error('Error al obtener historial de planillas:', error);
-        return res.status(500).json({ mensaje: 'Error al consultar el historial de planillas.' });
+        return res.status(500).json({ mensaje: 'Error al obtener el historial de planillas.' });
     }
 };
