@@ -11,6 +11,10 @@ const PlanillaRacion = sequelize.define('PlanillaRacion', {
         type: DataTypes.INTEGER,
         allowNull: false // ID del plato que la encargada eligió cocinar
     },
+    idUsuario: {
+        type: DataTypes.INTEGER,
+        allowNull: false // Toda ración diaria debe tener el responsable que cocinó
+    },
     fecha: {
         type: DataTypes.DATEONLY, // Guarda solo la fecha (AAAA-MM-DD) sin la hora
         allowNull: false,

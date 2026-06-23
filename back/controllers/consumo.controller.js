@@ -1,5 +1,5 @@
 import sequelize from '../config/database.js';
-import { Consumo, LoteStock, Producto, Kardex } from '../models/index.js';
+import { Consumo, LoteStock, Producto, Kardex, Usuario } from '../models/index.js';
 import { Op } from 'sequelize';
 
 // 1. REGISTRAR UN NUEVO CONSUMO (Salida de stock con algoritmo FIFO)
@@ -8,6 +8,9 @@ export const createConsumo = async (req, res) => {
 
     try {
         const { idProducto, cantidadTotal, detalle } = req.body;
+
+        // 🎯 EXTRACCIÓN ULTRA SEGURA: Obtenemos el ID del usuario logueado desde el Token JWT
+        const idUsuarioLogueado = req.usuario.id;
 
         // 🛡️ Validación 1: Campos obligatorios y lógica de cantidades
         if (!idProducto || cantidadTotal === undefined || parseFloat(cantidadTotal) <= 0) {
@@ -33,57 +36,54 @@ export const createConsumo = async (req, res) => {
             transaction: t
         });
 
-        // 4. Calcular el stock total consolidado en el depósito
-        const stockTotal = lotesDisponibles.reduce((sum, lote) => sum + parseFloat(lote.cantidadActual), 0);
+        // 4. Calcular stock total disponible
+        const stockTotalDisponible = lotesDisponibles.reduce((suma, l) => suma + parseFloat(l.cantidadActual), 0);
 
-        // 🛡️ Validación 3: Control de existencias totales antes de tocar nada
-        if (stockTotal < cantidadRequerida) {
+        if (stockTotalDisponible < cantidadRequerida) {
             await t.rollback();
             return res.status(400).json({
-                mensaje: `Stock insuficiente. Solicitado: ${cantidadRequerida} ${producto.unidadMedida}, Disponible: ${stockTotal} ${producto.unidadMedida}`
+                mensaje: `Stock insuficiente para realizar el consumo de "${producto.nombre}". Requerido: ${cantidadRequerida}, Disponible: ${stockTotalDisponible}.`
             });
         }
 
-        // 5. Crear el registro "Maestro" del Consumo
+        // 5. Crear el registro en la tabla consumos firmando digitalmente con idUsuario
         const nuevoConsumo = await Consumo.create({
             idProducto,
-            cantidadTotal: cantidadRequerida,
-            detalle: detalle?.trim() || 'Salida por consumo regular de cocina',
-            fechaConsumo: new Date()
+            idUsuario: idUsuarioLogueado, // 🎯 Asignamos el usuario responsable
+            cantidadTotal,
+            detalle: detalle || 'Salida manual de stock'
         }, { transaction: t });
 
-        let cantidadPendiente = cantidadRequerida;
+        // 6. Algoritmo FIFO: Ir descontando lote por lote
+        let cantidadRestante = cantidadRequerida;
 
-        // 6. Bucle FIFO en cascada para ir vaciando/restando lotes
-        for (let lote of lotesDisponibles) {
-            if (cantidadPendiente <= 0) break;
+        for (const lote of lotesDisponibles) {
+            if (cantidadRestante <= 0) break;
 
-            let stockEnLote = parseFloat(lote.cantidadActual);
-            let cantidadADescontar = 0;
+            const stockLote = parseFloat(lote.cantidadActual);
+            let cantidadA_Descontar = 0;
 
-            if (stockEnLote >= cantidadPendiente) {
-                // Caso A: El lote actual tiene suficiente o justo lo que falta
-                cantidadADescontar = cantidadPendiente;
-                lote.cantidadActual = parseFloat((stockEnLote - cantidadPendiente).toFixed(2));
-                cantidadPendiente = 0;
+            if (stockLote >= cantidadRestante) {
+                cantidadA_Descontar = cantidadRestante;
+                lote.cantidadActual = stockLote - cantidadA_Descontar;
+                cantidadRestante = 0;
             } else {
-                // Caso B: El lote no alcanza solo. Se vacía y el saldo pasa al próximo lote
-                cantidadADescontar = stockEnLote;
-                cantidadPendiente = parseFloat((cantidadPendiente - stockEnLote).toFixed(2));
+                cantidadA_Descontar = stockLote;
                 lote.cantidadActual = 0;
+                cantidadRestante -= cantidadA_Descontar;
             }
 
-            // Guardamos el lote modificado dentro de la transacción
+            // Guardamos el cambio de stock en el lote actual
             await lote.save({ transaction: t });
 
-            // Insertamos la línea detallada en el Kardex para la auditoría física del lote
+            // 7. Registrar cada movimiento en el Kardex asociándolo al lote de origen
             await Kardex.create({
                 idLote: lote.id,
                 tipoMovimiento: 'Salida',
-                cantidad: cantidadADescontar,
+                cantidad: cantidadA_Descontar,
                 precioUnitarioHistorico: lote.precioUnitario,
                 fechaMovimiento: new Date(),
-                detalle: `Consumo Ref #${nuevoConsumo.id}: ${nuevoConsumo.detalle}`
+                detalle: `Consumo Ref #${nuevoConsumo.id}: ${nuevoConsumo.detalle} (Por usuario ID: ${idUsuarioLogueado})`
             }, { transaction: t });
         }
 
@@ -103,20 +103,27 @@ export const createConsumo = async (req, res) => {
     }
 };
 
-// 2. OBTENER EL HISTORIAL DE CONSUMOS GLOBALES (Opcional, útil para listados limpios)
+// 2. OBTENER EL HISTORIAL DE CONSUMOS GLOBALES (Con datos de quién cargó)
 export const getConsumos = async (req, res) => {
     try {
         const consumos = await Consumo.findAll({
-            include: [{
-                model: Producto,
-                as: 'producto',
-                attributes: ['nombre', 'unidadMedida', 'categoria']
-            }],
+            include: [
+                {
+                    model: Producto,
+                    as: 'producto',
+                    attributes: ['nombre', 'unidadMedida', 'categoria']
+                },
+                {
+                    model: Usuario, // 🎯 Permite ver qué cocinera o admin hizo el consumo directo
+                    as: 'usuario',
+                    attributes: ['nombreCompleto', 'rol']
+                }
+            ],
             order: [['fechaConsumo', 'DESC']]
         });
         return res.status(200).json(consumos);
     } catch (error) {
         console.error('Error al traer consumos:', error);
-        return res.status(500).json({ mensaje: 'Error al obtener el historial de consumos.' });
+        return res.status(500).json({ mensaje: 'Error al obtener la lista de consumos.' });
     }
 };

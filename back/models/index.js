@@ -5,16 +5,15 @@ import Consumo from './Consumo.js';
 import Menu from './Menu.js';
 import MenuIngrediente from './MenuIngrediente.js';
 import PlanillaRacion from './PlanillaRacion.js';
+import Usuario from './Usuario.js'; // 🎯 Importamos el nuevo modelo de usuarios
 
 // DEFINICIÓN DE ASOCIACIONES (RELACIONES)
 
 // Relación Producto <-> LoteStock (1:N)
-// onDelete: 'RESTRICT' impide borrar el producto si tiene lotes asociados
 Producto.hasMany(LoteStock, { foreignKey: 'idProducto', as: 'lotes', onDelete: 'RESTRICT' });
 LoteStock.belongsTo(Producto, { foreignKey: 'idProducto', as: 'producto' });
 
 // Relación LoteStock <-> Kardex (1:N)
-// onDelete: 'RESTRICT' impide borrar un lote si ya tiene movimientos en el historial del Kardex
 LoteStock.hasMany(Kardex, { foreignKey: 'idLote', as: 'movimientos', onDelete: 'RESTRICT' });
 Kardex.belongsTo(LoteStock, { foreignKey: 'idLote', as: 'lote' });
 
@@ -24,7 +23,7 @@ Consumo.belongsTo(Producto, { foreignKey: 'idProducto', as: 'producto' });
 
 // --- RELACIONES DE MENÚS Y RECETAS ---
 
-// Un Menú (Guiso de Arroz) tiene muchos ingredientes en su receta
+// Un Menú tiene muchos ingredientes en su receta
 Menu.hasMany(MenuIngrediente, { foreignKey: 'idMenu', as: 'ingredientes' });
 MenuIngrediente.belongsTo(Menu, { foreignKey: 'idMenu', as: 'menu' });
 
@@ -34,10 +33,22 @@ MenuIngrediente.belongsTo(Producto, { foreignKey: 'idProducto', as: 'producto' }
 
 // --- RELACIÓN DE LA PLANILLA DIARIA ---
 // Una planilla diaria de cocina pertenece a un Menú (receta) de tu catálogo
-Menu.hasMany(PlanillaRacion, { foreignKey: 'idMenu', as: 'historialCocina' });
+Menu.hasMany(PlanillaRacion, { foreignKey: 'idMenu', as: 'planillas' });
 PlanillaRacion.belongsTo(Menu, { foreignKey: 'idMenu', as: 'menu' });
 
-// Exportamos todos los modelos unificados (Ya sin RegistroRacion)
+
+// --- 🔒 NUEVAS RELACIONES DE SEGURIDAD Y ROLES ---
+
+// Un Usuario (Administrador o Cocinera) puede registrar muchas planillas de raciones diarias
+Usuario.hasMany(PlanillaRacion, { foreignKey: 'idUsuario', as: 'racionesRegistradas' });
+PlanillaRacion.belongsTo(Usuario, { foreignKey: 'idUsuario', as: 'usuario' });
+
+// Un Usuario puede asentar muchos consumos globales en el sistema
+Usuario.hasMany(Consumo, { foreignKey: 'idUsuario', as: 'consumosRegistrados' });
+Consumo.belongsTo(Usuario, { foreignKey: 'idUsuario', as: 'usuario' });
+
+
+// Exportamos todos los modelos agrupados y listos
 export {
     Producto,
     LoteStock,
@@ -45,5 +56,6 @@ export {
     Consumo,
     Menu,
     MenuIngrediente,
-    PlanillaRacion
+    PlanillaRacion,
+    Usuario // 🎯 Exportamos el nuevo modelo para usarlo en controladores
 };
