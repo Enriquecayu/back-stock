@@ -13,7 +13,7 @@ const ConsumosForm = () => {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState({ type: '', msg: '' });
 
-    // 1. Cargar el catálogo de productos disponibles para el select
+    // 1. Cargar el catálogo de productos disponibles para el select (Trae stockReal y bajoStock)
     useEffect(() => {
         const traerProductos = async () => {
             try {
@@ -21,12 +21,13 @@ const ConsumosForm = () => {
                 setProductos(respuesta.data);
             } catch (error) {
                 console.error('Error al mapear productos para consumos:', error);
+                setStatus({ type: 'error', msg: 'No se pudo cargar el stock desde el servidor.' });
             }
         };
         traerProductos();
     }, []);
 
-    // 2. Escuchar cambios en el select para clavar la unidad de medida en tiempo real
+    // 2. Escuchar cambios en el select para fijar la unidad de medida en tiempo real y evaluar el stock
     const manejarCambioProducto = (e) => {
         const id = e.target.value;
         setIdProducto(id);
@@ -39,74 +40,115 @@ const ConsumosForm = () => {
         }
     };
 
-    // 3. Enviar el consumo al backend (Algoritmo FIFO transaccional)
-    const manejarEnvio = async (e) => {
+    // 3. Procesar el formulario y ejecutar el descuento FIFO en el Back
+    const manejarSubmitConsumo = async (e) => {
         e.preventDefault();
         setStatus({ type: '', msg: '' });
 
-        if (!idProducto || !cantidadTotal || parseFloat(cantidadTotal) <= 0) {
-            setStatus({ type: 'error', msg: 'Por favor, ingrese un producto y una cantidad válida mayor a cero.' });
+        // Validaciones básicas de seguridad en el Front
+        if (!idProducto) {
+            setStatus({ type: 'error', msg: 'Debe seleccionar un insumo del depósito.' });
+            return;
+        }
+        if (!cantidadTotal || parseFloat(cantidadTotal) <= 0) {
+            setStatus({ type: 'error', msg: 'Ingrese una cantidad válida mayor a cero.' });
             return;
         }
 
         setLoading(true);
 
         try {
-            const respuesta = await axiosClient.post('/consumos', {
+            const payload = {
                 idProducto: parseInt(idProducto),
-                cantidadTotal: parseFloat(cantidadTotal),
-                detalle: detalle
+                cantidad: parseFloat(cantidadTotal),
+                detalle: detalle.trim() || 'Salida directa registrada por personal autorizado.'
+            };
+
+            const respuesta = await axiosClient.post('/consumos', payload);
+
+            // Respuesta exitosa: notificamos y limpiamos el formulario
+            setStatus({
+                type: 'exito',
+                msg: respuesta.data.mensaje || '¡Descuento FIFO aplicado correctamente en los lotes!'
             });
 
-            setStatus({ type: 'success', msg: respuesta.data.mensaje });
-
-            // Limpiamos los campos operativos del formulario tras el éxito
+            // Reseteamos estados
             setIdProducto('');
             setCantidadTotal('');
             setDetail('');
             setUnidadSeleccionada('');
+
+            // Opcional: Volvemos a consultar el catálogo para actualizar los flags de stock mínimo en caliente
+            const actualizarCatalogo = await axiosClient.get('/productos');
+            setProductos(actualizarCatalogo.data);
+
         } catch (error) {
-            console.error('Error al registrar salida:', error);
-            const mensajeError = error.response?.data?.mensaje || 'Error interno al procesar el consumo.';
-            setStatus({ type: 'error', msg: mensajeError });
+            console.error('Error al procesar el consumo:', error);
+            const smsError = error.response?.data?.error || 'Error interno al procesar la salida de stock.';
+            setStatus({ type: 'error', msg: smsError });
         } finally {
             setLoading(false);
         }
     };
 
+    // Buscamos si el producto seleccionado actualmente ya está en estado crítico
+    const productoSeleccionadoCritico = idProducto
+        ? productos.find(p => p.id === parseInt(idProducto))?.bajoStock
+        : false;
+
     return (
         <div className="consumo-form-container">
-            <h3 className="consumo-form-title">🔻 Registrar Consumo / Salida de Stock</h3>
+            <h2 className="consumo-form-title">🔥 Registro de Consumo Operativo (Salida FIFO)</h2>
 
+            {/* Alertas de Estado (Éxito o Error) */}
             {status.msg && (
-                <div className={`alert-consumo alert-consumo-${status.type}`}>
+                <div className={`mensaje ${status.type === 'exito' ? 'exito' : 'error'}`}>
                     {status.msg}
                 </div>
             )}
 
-            <form onSubmit={manejarEnvio}>
-                {/* Selector de Insumo */}
+            <form onSubmit={manejarSubmitConsumo} className="consumo-form">
+
+                {/* Selector de Insumos */}
                 <div className="consumo-form-group">
-                    <label htmlFor="select-producto">Seleccione el Insumo a retirar:</label>
+                    <label htmlFor="select-producto">Insumo a retirar del depósito:</label>
                     <select
                         id="select-producto"
                         className="consumo-form-select"
                         value={idProducto}
                         onChange={manejarCambioProducto}
                         disabled={loading}
+                        required
                     >
                         <option value="">-- Seleccionar Producto --</option>
                         {productos.map(p => (
                             <option key={p.id} value={p.id}>
-                                {p.nombre} ({p.categoria})
+                                {p.nombre} ({p.categoria}) {p.bajoStock ? '⚠️ (Crítico)' : ''}
                             </option>
                         ))}
                     </select>
+
+                    {/* 🎯 CARTEL DE ADVERTENCIA PREVENTIVO EN CALIENTE */}
+                    {productoSeleccionadoCritico && (
+                        <span style={{
+                            color: '#e02424',
+                            fontSize: '0.85rem',
+                            marginTop: '8px',
+                            fontWeight: 'bold',
+                            display: 'block',
+                            backgroundColor: '#fdf2f2',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #fde8e8'
+                        }}>
+                            ⚠️ Atención: Este insumo ya se encuentra por debajo de su stock mínimo configurado.
+                        </span>
+                    )}
                 </div>
 
-                {/* Cantidad Dinámica */}
+                {/* Cantidad a retirar */}
                 <div className="consumo-form-group">
-                    <label htmlFor="input-cantidad">Cantidad a consumir:</label>
+                    <label htmlFor="input-cantidad">Cantidad a descontar:</label>
                     <div className="input-unidades-box">
                         <input
                             id="input-cantidad"
@@ -117,6 +159,7 @@ const ConsumosForm = () => {
                             value={cantidadTotal}
                             onChange={(e) => setCantidadTotal(e.target.value)}
                             disabled={loading}
+                            required
                         />
                         {unidadSeleccionada && (
                             <span className="txt-unidad-medida">{unidadSeleccionada}</span>
@@ -138,6 +181,7 @@ const ConsumosForm = () => {
                     />
                 </div>
 
+                {/* Botón de Confirmación */}
                 <button
                     type="submit"
                     className="btn-submit-consumo"

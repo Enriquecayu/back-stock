@@ -4,7 +4,7 @@ import { Producto, LoteStock, Kardex } from '../models/index.js';
 import sequelize from '../config/database.js';
 import ExcelJS from 'exceljs';
 
-// 1. OBTENER TODOS LOS PRODUCTOS
+// 1. OBTENER TODOS LOS PRODUCTOS CON ALERTA DE STOCK REAL (FIFO)
 export const getProductos = async (req, res) => {
     try {
         const productos = await Producto.findAll({
@@ -14,24 +14,40 @@ export const getProductos = async (req, res) => {
                 'categoria',
                 'unidadMedida',
                 'stockMinimo',
-                [
-                    sequelize.fn('COUNT', sequelize.col('lotes.id')),
-                    'totalLotes'
-                ]
+                // Mantiene tu conteo original de lotes activos
+                [sequelize.fn('COUNT', sequelize.col('lotes.id')), 'totalLotes'],
+
+                // 🎯 SOLUCIÓN DEFINITIVA: Forzamos el escape exacto de PostgreSQL con comillas dobles usando literal
+                [sequelize.literal('COALESCE(SUM("lotes"."cantidad_actual"), 0)'), 'stockReal']
             ],
             include: [{
                 model: LoteStock,
-                as: 'lotes',
-                attributes: []
+                as: 'lotes', // Tu alias asignado
+                attributes: [] // No queremos filas sueltas
             }],
             group: ['Producto.id'],
-            order: [['nombre', 'ASC']]
+            order: [['nombre', 'ASC']],
+            raw: true
         });
 
-        return res.status(200).json(productos);
+        // El resto del mapeo se mantiene exactamente igual...
+        const catalogoConAlertas = productos.map(prod => {
+            const stockRealNum = parseFloat(prod.stockReal);
+            const stockMinimoNum = parseFloat(prod.stockMinimo);
+
+            return {
+                ...prod,
+                stockReal: stockRealNum,
+                stockMinimo: stockMinimoNum,
+                bajoStock: stockRealNum <= stockMinimoNum
+            };
+        });
+
+        return res.status(200).json(catalogoConAlertas);
+
     } catch (error) {
-        console.error('Error al obtener productos:', error);
-        return res.status(500).json({ mensaje: 'Error al obtener el catálogo.' });
+        console.error('Error al obtener productos con alertas:', error);
+        return res.status(500).json({ mensaje: 'Error al obtener el catálogo de productos.' });
     }
 };
 
