@@ -135,3 +135,24 @@
     display: inline-flex;
     align-items: center;
 }
+/* Tarjeta de lote cuando se queda sin stock (cantidadActual === 0) */
+.tarjeta-lote-agotado {
+    background-color: #f1f3f5 !important; /* Gris claro */
+    border: 1px solid #dee2e6 !important;
+    opacity: 0.75; /* Un toque de transparencia para denotar inactividad */
+    box-shadow: none !important;
+}
+
+/* Badge o etiqueta de Agotado */
+.badge-lote-agotado {
+    background-color: #6c757d; /* Gris oscuro administrativo */
+    color: white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+}

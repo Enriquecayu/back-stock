@@ -7,13 +7,15 @@ export const createConsumo = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
+        // 🎯 Mantenemos 'cantidadTotal' para que ensamble directo con tu formulario original
         const { idProducto, cantidadTotal, detalle } = req.body;
 
-        // 🎯 EXTRACCIÓN ULTRA SEGURA: Obtenemos el ID del usuario logueado desde el Token JWT
+        // Extracción del ID del usuario logueado desde el Token JWT
         const idUsuarioLogueado = req.usuario.id;
 
         // 🛡️ Validación 1: Campos obligatorios y lógica de cantidades
         if (!idProducto || cantidadTotal === undefined || parseFloat(cantidadTotal) <= 0) {
+            await t.rollback();
             return res.status(400).json({ mensaje: 'Faltan campos obligatorios o la cantidad es inválida.' });
         }
 
@@ -27,6 +29,7 @@ export const createConsumo = async (req, res) => {
         const cantidadRequerida = parseFloat(cantidadTotal);
 
         // 3. Buscar lotes disponibles con stock activo (> 0) ordenados por vencimiento (FIFO)
+        // 🎯 CORRECCIÓN: Buscamos usando la propiedad del modelo 'cantidadActual'
         const lotesDisponibles = await LoteStock.findAll({
             where: {
                 idProducto,
@@ -36,7 +39,7 @@ export const createConsumo = async (req, res) => {
             transaction: t
         });
 
-        // 4. Calcular stock total disponible
+        // 4. Calcular stock total disponible sumando las propiedades mapeadas por Sequelize
         const stockTotalDisponible = lotesDisponibles.reduce((suma, l) => suma + parseFloat(l.cantidadActual), 0);
 
         if (stockTotalDisponible < cantidadRequerida) {
@@ -46,11 +49,11 @@ export const createConsumo = async (req, res) => {
             });
         }
 
-        // 5. Crear el registro en la tabla consumos firmando digitalmente con idUsuario
+        // 5. Crear el registro en la tabla consumos
         const nuevoConsumo = await Consumo.create({
             idProducto,
-            idUsuario: idUsuarioLogueado, // 🎯 Asignamos el usuario responsable
-            cantidadTotal,
+            idUsuario: idUsuarioLogueado,
+            cantidadTotal: cantidadRequerida,
             detalle: detalle || 'Salida manual de stock'
         }, { transaction: t });
 
@@ -60,20 +63,21 @@ export const createConsumo = async (req, res) => {
         for (const lote of lotesDisponibles) {
             if (cantidadRestante <= 0) break;
 
+            // 🎯 CORRECCIÓN CLAVE: Leemos desde 'cantidadActual' (CamelCase)
             const stockLote = parseFloat(lote.cantidadActual);
             let cantidadA_Descontar = 0;
 
             if (stockLote >= cantidadRestante) {
                 cantidadA_Descontar = cantidadRestante;
-                lote.cantidadActual = stockLote - cantidadA_Descontar;
+                lote.cantidadActual = stockLote - cantidadA_Descontar; // Resta sobre la propiedad correcta
                 cantidadRestante = 0;
             } else {
                 cantidadA_Descontar = stockLote;
-                lote.cantidadActual = 0;
+                lote.cantidadActual = 0; // Se agota el lote
                 cantidadRestante -= cantidadA_Descontar;
             }
 
-            // Guardamos el cambio de stock en el lote actual
+            // 🎯 Ahora Sequelize sí detecta el cambio en 'cantidadActual' e impacta Postgres
             await lote.save({ transaction: t });
 
             // 7. Registrar cada movimiento en el Kardex asociándolo al lote de origen
@@ -87,7 +91,7 @@ export const createConsumo = async (req, res) => {
             }, { transaction: t });
         }
 
-        // Si todo salió perfecto, confirmamos definitivamente los cambios en PostgreSQL
+        // Confirmamos definitivamente los cambios en PostgreSQL
         await t.commit();
 
         return res.status(201).json({
@@ -96,14 +100,13 @@ export const createConsumo = async (req, res) => {
         });
 
     } catch (error) {
-        // Si saltó cualquier error, el rollback resguarda la base de datos intacta
         await t.rollback();
         console.error('Error al procesar el consumo FIFO:', error);
         return res.status(500).json({ mensaje: 'Error interno al registrar el consumo.' });
     }
 };
 
-// 2. OBTENER EL HISTORIAL DE CONSUMOS GLOBALES (Con datos de quién cargó)
+// 2. OBTENER EL HISTORIAL DE CONSUMOS GLOBALES
 export const getConsumos = async (req, res) => {
     try {
         const consumos = await Consumo.findAll({
@@ -114,7 +117,7 @@ export const getConsumos = async (req, res) => {
                     attributes: ['nombre', 'unidadMedida', 'categoria']
                 },
                 {
-                    model: Usuario, // 🎯 Permite ver qué cocinera o admin hizo el consumo directo
+                    model: Usuario,
                     as: 'usuario',
                     attributes: ['nombreCompleto', 'rol']
                 }
@@ -124,6 +127,6 @@ export const getConsumos = async (req, res) => {
         return res.status(200).json(consumos);
     } catch (error) {
         console.error('Error al traer consumos:', error);
-        return res.status(500).json({ mensaje: 'Error al obtener la lista de consumos.' });
+        return res.status(500).json({ mensaje: 'Error al obtener el historial de consumos.' });
     }
 };

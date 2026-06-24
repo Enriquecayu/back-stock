@@ -127,15 +127,38 @@ const Inventario = () => {
                         <p>No se registran lotes físicos con existencias para este insumo actualmente.</p>
                     ) : (
                         <div className="grid-lotes">
-                            {lotes.map((lote) => (
-                                <div key={lote.id} className="tarjeta-lote">
-                                    <p><strong>Lote Nº:</strong> <code>{lote.numeroLote || 'Sin Código'}</code></p>
-                                    <p><strong>Cant. Inicial:</strong> {lote.cantidadInicial} {productoSeleccionado.unidadMedida}</p>
-                                    <p><strong>Cant. Actual:</strong> {lote.cantidadActual} {productoSeleccionado.unidadMedida}</p>
-                                    <p><strong>Precio Unit.:</strong> ${parseFloat(lote.precioUnitario).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-                                    <p><strong>Vencimiento:</strong> {lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-AR') : 'No vence'}</p>
-                                </div>
-                            ))}
+                            {lotes.map((lote) => {
+                                // 🎯 Evaluamos si el lote específico se quedó sin stock
+                                const esAgotado = parseFloat(lote.cantidadActual) <= 0;
+
+                                return (
+                                    <div
+                                        key={lote.id}
+                                        className={`tarjeta-lote ${esAgotado ? 'tarjeta-lote-agotado' : ''}`}
+                                    >
+                                        <p>
+                                            <strong>Lote Nº:</strong> <code>{lote.numeroLote || 'Sin Código'}</code>
+                                            {/* 🎯 Badge gris de Agotado */}
+                                            {esAgotado && <span className="badge-lote-agotado">Agotado</span>}
+                                        </p>
+                                        <p><strong>Cant. Inicial:</strong> {lote.cantidadInicial} {productoSeleccionado.unidadMedida}</p>
+
+                                        {/* 🎯 Atenuamos el texto si está vacío */}
+                                        <p>
+                                            <strong>Cant. Actual:</strong>{' '}
+                                            <span style={{
+                                                fontWeight: esAgotado ? 'normal' : 'bold',
+                                                color: esAgotado ? '#6c757d' : '#000'
+                                            }}>
+                                                {lote.cantidadActual} {productoSeleccionado.unidadMedida}
+                                            </span>
+                                        </p>
+
+                                        <p><strong>Precio Unit.:</strong> ${parseFloat(lote.precioUnitario).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+                                        <p><strong>Vencimiento:</strong> {lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-AR') : 'No vence'}</p>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

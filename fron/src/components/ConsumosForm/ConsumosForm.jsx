@@ -6,14 +6,14 @@ const ConsumosForm = () => {
     const [productos, setProductos] = useState([]);
     const [idProducto, setIdProducto] = useState('');
     const [cantidadTotal, setCantidadTotal] = useState('');
-    const [detalle, setDetail] = useState('');
+    const [detalle, setDetalle] = useState(''); // 🎯 Unificado a setDetalle
 
     // Estados para respuestas visuales y carga
     const [unidadSeleccionada, setUnidadSeleccionada] = useState('');
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState({ type: '', msg: '' });
 
-    // 1. Cargar el catálogo de productos disponibles para el select (Trae stockReal y bajoStock)
+    // 1. Cargar el catálogo de productos disponibles para el select
     useEffect(() => {
         const traerProductos = async () => {
             try {
@@ -27,7 +27,7 @@ const ConsumosForm = () => {
         traerProductos();
     }, []);
 
-    // 2. Escuchar cambios en el select para fijar la unidad de medida en tiempo real y evaluar el stock
+    // 2. Escuchar cambios en el select para fijar la unidad de medida en tiempo real
     const manejarCambioProducto = (e) => {
         const id = e.target.value;
         setIdProducto(id);
@@ -58,40 +58,46 @@ const ConsumosForm = () => {
         setLoading(true);
 
         try {
+            // 🎯 Payload exacto que espera tu controlador ('cantidadTotal')
             const payload = {
                 idProducto: parseInt(idProducto),
-                cantidad: parseFloat(cantidadTotal),
+                cantidadTotal: parseFloat(cantidadTotal),
                 detalle: detalle.trim() || 'Salida directa registrada por personal autorizado.'
             };
 
-            const respuesta = await axiosClient.post('/consumos', payload);
+            // Aseguramos el token de sesión en la cabecera del POST
+            const token = localStorage.getItem('token');
+            const configuracion = token
+                ? { headers: { Authorization: `Bearer ${token}` } }
+                : {};
 
-            // Respuesta exitosa: notificamos y limpiamos el formulario
+            const respuesta = await axiosClient.post('/consumos', payload, configuracion);
+
+            // Respuesta exitosa
             setStatus({
                 type: 'exito',
                 msg: respuesta.data.mensaje || '¡Descuento FIFO aplicado correctamente en los lotes!'
             });
 
-            // Reseteamos estados
+            // Reseteamos el formulario por completo
             setIdProducto('');
             setCantidadTotal('');
-            setDetail('');
+            setDetalle('');
             setUnidadSeleccionada('');
 
-            // Opcional: Volvemos a consultar el catálogo para actualizar los flags de stock mínimo en caliente
+            // Volvemos a consultar el catálogo para actualizar los flags y stock en caliente
             const actualizarCatalogo = await axiosClient.get('/productos');
             setProductos(actualizarCatalogo.data);
 
         } catch (error) {
             console.error('Error al procesar el consumo:', error);
-            const smsError = error.response?.data?.error || 'Error interno al procesar la salida de stock.';
+            const smsError = error.response?.data?.mensaje || error.response?.data?.error || 'Error interno al procesar la salida de stock.';
             setStatus({ type: 'error', msg: smsError });
         } finally {
             setLoading(false);
         }
     };
 
-    // Buscamos si el producto seleccionado actualmente ya está en estado crítico
     const productoSeleccionadoCritico = idProducto
         ? productos.find(p => p.id === parseInt(idProducto))?.bajoStock
         : false;
@@ -128,7 +134,7 @@ const ConsumosForm = () => {
                         ))}
                     </select>
 
-                    {/* 🎯 CARTEL DE ADVERTENCIA PREVENTIVO EN CALIENTE */}
+                    {/* Cartel preventivo */}
                     {productoSeleccionadoCritico && (
                         <span style={{
                             color: '#e02424',
@@ -176,7 +182,7 @@ const ConsumosForm = () => {
                         className="consumo-form-input"
                         placeholder="Ej: Almuerzo Pabellón A / Descarte por rotura"
                         value={detalle}
-                        onChange={(e) => setDetail(e.target.value)}
+                        onChange={(e) => setDetalle(e.target.value)} // 🎯 Corregido a setDetalle
                         disabled={loading}
                     />
                 </div>
