@@ -11,7 +11,7 @@ const Inventario = () => {
     const [lotes, setLotes] = useState([]);
     const [loadingLotes, setLoadingLotes] = useState(false);
 
-    // 1. Cargar el catálogo general al renderizar la pantalla
+    // 1. Cargar el catálogo general al renderizar la pantalla (Incluye stockReal y bajoStock del Back)
     useEffect(() => {
         const obtenerProductos = async () => {
             try {
@@ -35,16 +35,17 @@ const Inventario = () => {
             return;
         }
 
+        // Si selecciona uno nuevo, activamos el estado de carga y consultamos sus lotes
         setProductoSeleccionado(producto);
-        setLotes([]);
         setLoadingLotes(true);
+        setLotes([]);
 
         try {
-            // Petición con query string directo a tu controlador modificado
+            // Pegamos al endpoint de lotes filtrando por el id del producto
             const respuesta = await axiosClient.get(`/lotes?idProducto=${producto.id}`);
             setLotes(respuesta.data);
         } catch (error) {
-            console.error('Error al cargar lotes perezosos:', error);
+            console.error('Error al traer los lotes del producto seleccionado:', error);
         } finally {
             setLoadingLotes(false);
         }
@@ -53,46 +54,67 @@ const Inventario = () => {
     if (loadingProductos) {
         return (
             <div className="inventario-container">
-                <p className="loading-text">Cargando inventario general de depósitos...</p>
+                <p className="loading-text">Conectando con el almacén central de Centinela...</p>
             </div>
         );
     }
 
     return (
-        <div className="inventario-container fade-in">
-            <h3 className="inventario-title">📦 Inventario General de Depósito</h3>
+        <div className="inventario-container">
+            <h2 className="inventario-title">📦 Inventario de Insumos Hospitalarios</h2>
 
-            {/* Tabla del catálogo base */}
             <table className="tabla-inventario">
                 <thead>
                     <tr>
                         <th>Código</th>
-                        <th>Nombre del Insumo</th>
+                        <th>Insumo</th>
                         <th>Categoría</th>
-                        <th>Unidad de Medida</th>
-                        <th>Lotes en Stock</th>
+                        <th>Stock Total</th>
+                        <th>Mínimo Requerido</th>
+                        <th>Trazabilidad</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {productos.map((prod) => (
-                        <tr
-                            key={prod.id}
-                            className={`fila-producto ${productoSeleccionado?.id === prod.id ? 'fila-seleccionada' : ''}`}
-                            onClick={() => manejarSeleccionProducto(prod)}
-                        >
-                            <td>#{prod.id}</td>
-                            <td><strong>{prod.nombre}</strong></td>
-                            <td>{prod.categoria}</td>
-                            <td>{prod.unidadMedida}</td>
-                            <td>{prod.totalLotes || 0} lote(s) activo(s)</td>
-                        </tr>
-                    ))}
+                    {productos.map((prod) => {
+                        const esSeleccionado = productoSeleccionado?.id === prod.id;
+
+                        // 🎯 Determinamos dinámicamente la clase de la fila según su estado
+                        let claseFila = "fila-producto";
+                        if (esSeleccionado) {
+                            claseFila += " fila-seleccionada";
+                        } else if (prod.bajoStock) {
+                            claseFila += " fila-alerta-critica"; // Se pinta de rojo pastel si está crítico
+                        }
+
+                        return (
+                            <tr
+                                key={prod.id}
+                                className={claseFila}
+                                onClick={() => manejarSeleccionProducto(prod)}
+                            >
+                                <td>#{prod.id}</td>
+                                <td><strong>{prod.nombre}</strong></td>
+                                <td>{prod.categoria}</td>
+
+                                {/* 🎯 Mostramos el stock real sumado e inyectamos el cartel de alerta */}
+                                <td>
+                                    <strong>{prod.stockReal}</strong> {prod.unidadMedida}
+                                    {prod.bajoStock && (
+                                        <span className="badge-alerta-stock">
+                                            ⚠️ Crítico
+                                        </span>
+                                    )}
+                                </td>
+
+                                <td>{prod.stockMinimo} {prod.unidadMedida}</td>
+                                <td>{prod.totalLotes || 0} lote(s) activo(s)</td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
 
-            <p className="txt-ayuda">💡 Haga clic sobre cualquier fila para desplegar u ocultar el desglose de lotes físicos (FIFO).</p>
-
-            {/* --- BLOQUE DE DESGLOSE (Lazy Loading) --- */}
+            {/* 3. Panel de Desglose de Lotes (Aparece abajo al hacer clic en una fila) */}
             {productoSeleccionado && (
                 <div className="seccion-lotes-desglose fade-in">
                     <h4 className="lotes-title">
@@ -105,15 +127,38 @@ const Inventario = () => {
                         <p>No se registran lotes físicos con existencias para este insumo actualmente.</p>
                     ) : (
                         <div className="grid-lotes">
-                            {lotes.map((lote) => (
-                                <div key={lote.id} className="tarjeta-lote">
-                                    <p><strong>Lote Nº:</strong> {lote.numeroLote || 'Sin Código'}</p>
-                                    <p><strong>Cant. Inicial:</strong> {lote.cantidadInicial} {productoSeleccionado.unidadMedida}</p>
-                                    <p><strong>Cant. Actual:</strong> {lote.cantidadActual} {productoSeleccionado.unidadMedida}</p>
-                                    <p><strong>Precio Unit.:</strong> ${lote.precioUnitario}</p>
-                                    <p><strong>Vencimiento:</strong> {lote.fechaVencimiento}</p>
-                                </div>
-                            ))}
+                            {lotes.map((lote) => {
+                                // 🎯 Evaluamos si el lote específico se quedó sin stock
+                                const esAgotado = parseFloat(lote.cantidadActual) <= 0;
+
+                                return (
+                                    <div
+                                        key={lote.id}
+                                        className={`tarjeta-lote ${esAgotado ? 'tarjeta-lote-agotado' : ''}`}
+                                    >
+                                        <p>
+                                            <strong>Lote Nº:</strong> <code>{lote.numeroLote || 'Sin Código'}</code>
+                                            {/* 🎯 Badge gris de Agotado */}
+                                            {esAgotado && <span className="badge-lote-agotado">Agotado</span>}
+                                        </p>
+                                        <p><strong>Cant. Inicial:</strong> {lote.cantidadInicial} {productoSeleccionado.unidadMedida}</p>
+
+                                        {/* 🎯 Atenuamos el texto si está vacío */}
+                                        <p>
+                                            <strong>Cant. Actual:</strong>{' '}
+                                            <span style={{
+                                                fontWeight: esAgotado ? 'normal' : 'bold',
+                                                color: esAgotado ? '#6c757d' : '#000'
+                                            }}>
+                                                {lote.cantidadActual} {productoSeleccionado.unidadMedida}
+                                            </span>
+                                        </p>
+
+                                        <p><strong>Precio Unit.:</strong> ${parseFloat(lote.precioUnitario).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+                                        <p><strong>Vencimiento:</strong> {lote.fechaVencimiento ? new Date(lote.fechaVencimiento).toLocaleDateString('es-AR') : 'No vence'}</p>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
