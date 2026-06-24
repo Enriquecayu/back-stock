@@ -14,6 +14,7 @@ import kardexRoutes from "./routes/kardex.routes.js";
 import consumoRoutes from './routes/consumo.routes.js';
 import menuRoutes from './routes/menu.routes.js';
 import planillaRoutes from './routes/planilla.routes.js';
+import sectorRoutes from './routes/sector.routes.js';
 
 const app = express();
 
@@ -29,6 +30,10 @@ app.use('/api/kardex', kardexRoutes);
 app.use('/api/consumos', consumoRoutes);
 app.use('/api/menus', menuRoutes);
 app.use('/api/planillas', planillaRoutes);
+app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/menus', menuRoutes);
+app.use('/api/planillas', planillaRoutes);
+app.use('/api/sectores', sectorRoutes);
 
 const PORT = process.env.PORT || 3001;
 

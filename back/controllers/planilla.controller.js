@@ -1,5 +1,6 @@
 import sequelize from '../config/database.js';
-import { PlanillaRacion, Menu, MenuIngrediente, LoteStock, Kardex, Producto, Usuario } from '../models/index.js';
+// 🎯 Sumamos SectorDestinatario a los modelos importados
+import { PlanillaRacion, Menu, MenuIngrediente, LoteStock, Kardex, Producto, Usuario, SectorDestinatario } from '../models/index.js';
 import { Op } from 'sequelize';
 
 // 1. PROCESAR PLANILLA DIARIA DE RACIONES CON DESCUENTO FIFO AUTOMÁTICO
@@ -8,15 +9,44 @@ export const registrarPlanillaDiaria = async (req, res) => {
     const t = await sequelize.transaction();
 
     try {
-        const { idMenu, cantidadRaciones, observaciones, turno, tipoDestinatario } = req.body;
+        // 🔄 Cambiamos tipoDestinatario por idSector en la extracción del body
+        const { idMenu, cantidadRaciones, observaciones, turno, idSector } = req.body;
 
         // 🎯 EXTRACCIÓN ULTRA SEGURA: Extraemos el ID del usuario directamente desde el Token JWT
         const idUsuarioLogueado = req.usuario.id;
 
-        // Validaciones iniciales
-        if (!idMenu || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !tipoDestinatario) {
+        // Validaciones iniciales (Ahora chequea que idSector sea válido)
+        if (!idMenu || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !idSector) {
+            await t.rollback(); // Aseguramos cerrar la transacción abierta en la validación inicial
             return res.status(400).json({
-                mensaje: 'Debe especificar menú, cantidad de raciones válida, turno y tipo de destinatario.'
+                mensaje: 'Debe especificar menú, cantidad de raciones válida, turno y sector de destino.'
+            });
+        }
+
+        // 🛡️ BÚNKER ANTI-DUPLICADOS STRICTO POR ID DE SECTOR (Pedido por el Profesor)
+        const inicioHoy = new Date();
+        inicioHoy.setHours(0, 0, 0, 0);
+
+        const finHoy = new Date();
+        finHoy.setHours(23, 59, 59, 999);
+
+        // Buscamos si ya existe una planilla registrada HOY para el MISMO turno y MISMO ID de sector
+        const planillaExistente = await PlanillaRacion.findOne({
+            where: {
+                turno,
+                idSector, // 👈 Validación numérica exacta y blindada contra el catálogo
+                fecha: {
+                    [Op.gte]: inicioHoy,
+                    [Op.lte]: finHoy
+                }
+            },
+            transaction: t
+        });
+
+        if (planillaExistente) {
+            await t.rollback();
+            return res.status(400).json({
+                mensaje: `Operación cancelada: Ya se registró la planilla de raciones para este turno destinado a este sector el día de hoy.`
             });
         }
 
@@ -35,13 +65,13 @@ export const registrarPlanillaDiaria = async (req, res) => {
             return res.status(404).json({ mensaje: 'El menú seleccionado no existe.' });
         }
 
-        // 1. Guardar la cabecera de la planilla en 'planilla_raciones' firmada por el usuario
+        // 1. Guardar la cabecera de la planilla en 'planilla_raciones' firmada por el usuario y el ID de sector
         const nuevaPlanilla = await PlanillaRacion.create({
             idMenu,
-            idUsuario: idUsuarioLogueado, // 🎯 Guardamos el responsable del registro
+            idUsuario: idUsuarioLogueado,
             fecha: new Date(),
             turno,
-            tipoDestinatario,
+            idSector, // 👈 Guardamos de manera relacional el ID del sector seleccionado
             cantidadRaciones,
             observaciones
         }, { transaction: t });
@@ -119,7 +149,7 @@ export const registrarPlanillaDiaria = async (req, res) => {
     }
 };
 
-// 2. LISTAR EL HISTORIAL DE LAS PLANILLAS DIARIAS (Con datos del usuario que registró)
+// 2. LISTAR EL HISTORIAL DE LAS PLANILLAS DIARIAS (Con datos del usuario y del SECTOR relacional)
 export const getHistorialPlanillas = async (req, res) => {
     try {
         const historial = await PlanillaRacion.findAll({
@@ -130,9 +160,15 @@ export const getHistorialPlanillas = async (req, res) => {
                     attributes: ['nombre']
                 },
                 {
-                    model: Usuario, // 🎯 Incluimos el modelo Usuario para auditar en el frontend
+                    model: Usuario,
                     as: 'usuario',
                     attributes: ['nombreCompleto', 'rol']
+                },
+                {
+                    // 🎯 Sumamos el sector en el include para mostrar el nombre real en las tablas del Frontend
+                    model: SectorDestinatario,
+                    as: 'sector',
+                    attributes: ['nombre']
                 }
             ],
             order: [['fecha', 'DESC'], ['id', 'DESC']]
