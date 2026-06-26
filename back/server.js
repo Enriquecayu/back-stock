@@ -43,9 +43,6 @@ async function main() {
         await sequelize.authenticate();
         console.log("CONEXION EXITOSA A POSTGRES");
 
-        // 🚀 Mantenemos 'alter: true'. Al leer el archivo de modelos modificado, 
-        // PostgreSQL creará automáticamente la tabla 'usuarios' y añadirá las columnas
-        // 'idUsuario' requeridas en 'planillas' y 'consumos' sin alterar tus datos actuales.
         await sequelize.sync({ alter: true });
         console.log("BASE DE DATOS SINCRONIZADA CON DIRECTIVAS DE SEGURIDAD");
 
