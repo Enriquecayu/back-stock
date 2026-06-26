@@ -6,6 +6,7 @@ import Menu from './Menu.js';
 import MenuIngrediente from './MenuIngrediente.js';
 import PlanillaRacion from './PlanillaRacion.js';
 import Usuario from './Usuario.js'; // 🎯 Importamos el nuevo modelo de usuarios
+import SectorDestinatario from './SectorDestinatario.js'; // 👈 1. IMPORTAMOS EL NUEVO MODELO
 
 // DEFINICIÓN DE ASOCIACIONES (RELACIONES)
 
@@ -36,7 +37,6 @@ MenuIngrediente.belongsTo(Producto, { foreignKey: 'idProducto', as: 'producto' }
 Menu.hasMany(PlanillaRacion, { foreignKey: 'idMenu', as: 'planillas' });
 PlanillaRacion.belongsTo(Menu, { foreignKey: 'idMenu', as: 'menu' });
 
-
 // --- 🔒 NUEVAS RELACIONES DE SEGURIDAD Y ROLES ---
 
 // Un Usuario (Administrador o Cocinera) puede registrar muchas planillas de raciones diarias
@@ -46,6 +46,11 @@ PlanillaRacion.belongsTo(Usuario, { foreignKey: 'idUsuario', as: 'usuario' });
 // Un Usuario puede asentar muchos consumos globales en el sistema
 Usuario.hasMany(Consumo, { foreignKey: 'idUsuario', as: 'consumosRegistrados' });
 Consumo.belongsTo(Usuario, { foreignKey: 'idUsuario', as: 'usuario' });
+
+// --- 🏥 2. NUEVA RELACIÓN DEL CATÁLOGO DE SECTORES (Opción C) ---
+// Un sector (ej: "Pediatría") puede aparecer en muchas planillas diarias
+SectorDestinatario.hasMany(PlanillaRacion, { foreignKey: 'idSector', as: 'planillas', onDelete: 'RESTRICT' });
+PlanillaRacion.belongsTo(SectorDestinatario, { foreignKey: 'idSector', as: 'sector' });
 
 
 // Exportamos todos los modelos agrupados y listos
@@ -57,5 +62,6 @@ export {
     Menu,
     MenuIngrediente,
     PlanillaRacion,
-    Usuario // 🎯 Exportamos el nuevo modelo para usarlo en controladores
+    Usuario,
+    SectorDestinatario // 👈 3. EXPORTAMOS EL MODELO
 };

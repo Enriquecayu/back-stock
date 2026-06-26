@@ -25,8 +25,16 @@ const PlanillaRacion = sequelize.define('PlanillaRacion', {
         allowNull: false
     },
     tipoDestinatario: {
-        type: DataTypes.STRING(100), // 🎯 CAMBIADO: Ahora es un texto libre para que elijan o escriban cualquier área/destino
-        allowNull: false
+        type: DataTypes.STRING(100),
+        allowNull: true // 👈 CAMBIADO A TRUE: Clave para que Sequelize permita omitirlo en las nuevas planillas
+    },
+    idSector: {
+        type: DataTypes.INTEGER,
+        allowNull: false, // 🛡️ OBLIGATORIO: Toda nueva planilla debe apuntar a un ID del catálogo de sectores
+        references: {
+            model: 'sectores_destinatarios', // Nombre físico de la tabla maestra en la base de datos
+            key: 'id'
+        }
     },
     cantidadRaciones: {
         type: DataTypes.INTEGER,

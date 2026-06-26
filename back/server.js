@@ -14,6 +14,7 @@ import kardexRoutes from "./routes/kardex.routes.js";
 import consumoRoutes from './routes/consumo.routes.js';
 import menuRoutes from './routes/menu.routes.js';
 import planillaRoutes from './routes/planilla.routes.js';
+import sectorRoutes from './routes/sector.routes.js';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/kardex', kardexRoutes);
 app.use('/api/consumos', consumoRoutes);
 app.use('/api/menus', menuRoutes);
 app.use('/api/planillas', planillaRoutes);
+app.use('/api/sectores', sectorRoutes);
 
 const PORT = process.env.PORT || 3001;
 
@@ -38,9 +40,6 @@ async function main() {
         await sequelize.authenticate();
         console.log("CONEXION EXITOSA A POSTGRES");
 
-        // 🚀 Mantenemos 'alter: true'. Al leer el archivo de modelos modificado, 
-        // PostgreSQL creará automáticamente la tabla 'usuarios' y añadirá las columnas
-        // 'idUsuario' requeridas en 'planillas' y 'consumos' sin alterar tus datos actuales.
         await sequelize.sync({ alter: true });
         console.log("BASE DE DATOS SINCRONIZADA CON DIRECTIVAS DE SEGURIDAD");
 

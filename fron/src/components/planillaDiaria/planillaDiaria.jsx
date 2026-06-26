@@ -1,78 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import axiosClient from '../../services/api'; // Tu cliente Axios con la baseURL /api
-import './planillaDiaria.css'; 
+import './planillaDiaria.css';
 
 const PlanillaDiaria = () => {
-    const [menus, setMenus] = useState([]); 
-    const [idMenuSeleccionado, setIdMenuSeleccionado] = useState(''); 
-    const [cantidadRaciones, setCantidadRaciones] = useState(''); 
+    const [menus, setMenus] = useState([]);
+    const [sectores, setSectores] = useState([]);
 
-    // 🎯 ESTADOS TOTALMENTE SINCRO CON TU CONTROLADOR BACKEND
+    const [idMenuSeleccionado, setIdMenuSeleccionado] = useState('');
+    const [cantidadRaciones, setCantidadRaciones] = useState('');
     const [turno, setTurno] = useState('');
-    const [tipoDestinatario, setTipoDestinatario] = useState('');
-    const [observaciones, setObservaciones] = useState(''); 
-    
-    const [procesando, setProcesando] = useState(false); 
-    const [mensaje, setMensaje] = useState({ texto: '', tipo: '' }); 
+    const [idSector, setIdSector] = useState('');
+    const [observaciones, setObservaciones] = useState('');
 
-    // 1. Obtener los menús maestros guardados en la base de datos al montar el componente
+    const [procesando, setProcesando] = useState(false);
+    const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
+
+    // 🔒 LEER EL ROL DIRECTAMENTE DEL LOCALSTORAGE AL ARRANCAR
+    const [userRol, setUserRol] = useState(localStorage.getItem('rol') || '');
+    const [mostrarModal, setMostrarModal] = useState(false);
+    const [nuevoSectorNombre, setNuevoSectorNombre] = useState('');
+    const [guardandoSector, setGuardandoSector] = useState(false);
+
+    // Función para traer los sectores desde la API
+    const obtenerSectoresDeAPI = async () => {
+        try {
+            const resSectores = await axiosClient.get('/sectores');
+            setSectores(resSectores.data);
+        } catch (error) {
+            console.error('Error al traer sectores:', error);
+        }
+    };
+
+    // Carga inicial de menús y sectores maestros
     useEffect(() => {
-        const obtenerMenus = async () => {
+        const obtenerDatosIniciales = async () => {
             try {
-                // Llama directo a /menus (Axios le antepone /api)
-                const respuesta = await axiosClient.get('/menus'); 
-                setMenus(respuesta.data); 
+                const resMenus = await axiosClient.get('/menus');
+                setMenus(resMenus.data);
+
+                await obtenerSectoresDeAPI();
             } catch (error) {
-                console.error('Error al traer catálogo de menús con Axios:', error);
+                console.error('Error al cargar los catálogos del sistema:', error);
+                mostrarMensaje('Error al cargar los catálogos del sistema.', 'error');
             }
         };
-        obtenerMenus(); 
+        obtenerDatosIniciales();
     }, []);
 
-    // 2. Enviar los datos para calcular y descontar stock automáticamente (FIFO)
+    // Procesar el envío de la planilla diaria con descuento FIFO
     const handleProcesarPlanilla = async (e) => {
-        e.preventDefault(); 
+        e.preventDefault();
 
-        // 🛡️ Validación completa en el Frontend antes de gastar ancho de banda
-        if (!idMenuSeleccionado || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !tipoDestinatario.trim()) {
-            mostrarMensaje('Seleccione un menú, indique la cantidad, el turno y el destinatario.', 'error');
+        if (!idMenuSeleccionado || !cantidadRaciones || parseInt(cantidadRaciones) <= 0 || !turno || !idSector) {
+            mostrarMensaje('Seleccione un menú, indique la cantidad, el turno y el sector de destino.', 'error');
             return;
         }
 
-        setProcesando(true); 
-        setMensaje({ texto: '', tipo: '' }); // Limpiar respuestas previas
+        setProcesando(true);
+        setMensaje({ texto: '', tipo: '' });
 
         try {
-            // 🚀 IMPACTA DIRECTO EN: app.use('/api/planillas', planillaRoutes)
             const respuesta = await axiosClient.post('/planillas', {
                 idMenu: parseInt(idMenuSeleccionado),
                 cantidadRaciones: parseInt(cantidadRaciones),
-                turno,                                     // 'D', 'A', 'M' o 'C'
-                tipoDestinatario: tipoDestinatario.trim(), // Ej: "Pabellón de Pediatría"
+                turno,
+                idSector: parseInt(idSector), // Enviamos el ID numérico exacto
                 observaciones: observaciones.trim()
             });
 
-            // Muestra el mensaje de éxito que configuramos en tu controller ("Planilla Diaria procesada con éxito...")
             mostrarMensaje(respuesta.data.mensaje, 'exito');
 
-            // Limpiar formulario tras el éxito para evitar duplicados accidentales
+            // Limpiar formulario tras el éxito
             setIdMenuSeleccionado('');
             setCantidadRaciones('');
             setTurno('');
-            setTipoDestinatario('');
+            setIdSector('');
             setObservaciones('');
 
         } catch (error) {
             console.error('Error al procesar la planilla:', error);
-            // Captura el mensaje específico de stock insuficiente que programamos en el backend
-            const msgError = error.response?.data?.mensaje || 'Error interno al procesar los insumos por FIFO.';
+            const msgError = error.response?.data?.mensaje || 'Error interno al procesar la planilla.';
             mostrarMensaje(msgError, 'error');
         } finally {
-            setProcesando(false); 
+            setProcesando(false);
         }
     };
 
-    // Función auxiliar para alertas temporales
+    // Crear nuevo sector (Función exclusiva de la Administradora)
+    const handleCrearSector = async (e) => {
+        e.preventDefault();
+        if (!nuevoSectorNombre.trim()) return;
+
+        setGuardandoSector(true);
+        try {
+            const res = await axiosClient.post('/sectores', { nombre: nuevoSectorNombre.trim() });
+
+            mostrarMensaje(res.data.mensaje, 'exito');
+            setNuevoSectorNombre('');
+            setMostrarModal(false);
+
+            // Refrescamos la lista de sectores al instante
+            await obtenerSectoresDeAPI();
+        } catch (error) {
+            console.error('Error al crear sector:', error);
+            const msgError = error.response?.data?.mensaje || 'Error al crear el sector.';
+            alert(msgError);
+        } finally {
+            setGuardandoSector(false);
+        }
+    };
+
     const mostrarMensaje = (texto, tipo) => {
         setMensaje({ texto, tipo });
         if (tipo === 'exito') {
@@ -84,7 +121,7 @@ const PlanillaDiaria = () => {
         <div className="container">
             <h2 className="titulo">📋 Registro de Planilla Diaria (Cocina)</h2>
 
-            {/* Banner de Feedback visual para éxito o stock insuficiente */}
+            {/* Banner de Feedback */}
             {mensaje.texto && (
                 <div className={`mensaje ${mensaje.tipo === 'exito' ? 'exito' : 'error'}`}>
                     {mensaje.texto}
@@ -92,7 +129,7 @@ const PlanillaDiaria = () => {
             )}
 
             <form onSubmit={handleProcesarPlanilla}>
-                {/* Selección del Menú / Receta */}
+                {/* Selección del Menú */}
                 <div className="formGroup">
                     <label>Menú / Plato a Cocinar:</label>
                     <select
@@ -127,17 +164,36 @@ const PlanillaDiaria = () => {
                     </select>
                 </div>
 
-                {/* Tipo de Destinatario (Input de texto libre) */}
+                {/* Selector de Sectores + Botón Condicional */}
                 <div className="formGroup">
-                    <label>Destinado a (Sector / Tipo de Pacientes):</label>
-                    <input
-                        type="text"
+                    <div className="labelContainer">
+                        <label>Destinado a (Sector / Tipo de Pacientes):</label>
+
+                        {/* 🛡️ Solo se renderiza si el rol guardado es 'Administrador' */}
+                        {userRol === 'Administrador' && (
+                            <button
+                                type="button"
+                                className="btnCrearDestino"
+                                onClick={() => setMostrarModal(true)}
+                            >
+                                ➕ Crear Nuevo Destino
+                            </button>
+                        )}
+                    </div>
+
+                    <select
                         className="inputControl"
-                        value={tipoDestinatario}
-                        onChange={(e) => setTipoDestinatario(e.target.value)}
-                        placeholder="Ej: Pabellón de Pediatría, Internos Comunes, Dieta Liviana"
+                        value={idSector}
+                        onChange={(e) => setIdSector(e.target.value)}
                         disabled={procesando}
-                    />
+                    >
+                        <option value="">-- Seleccione el Sector Autorizado --</option>
+                        {sectores.map(sec => (
+                            <option key={sec.id} value={sec.id}>
+                                {sec.nombre}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* Cantidad de Raciones */}
@@ -145,36 +201,71 @@ const PlanillaDiaria = () => {
                     <label>Cantidad de Raciones (Número de Personas):</label>
                     <input
                         type="number"
-                        className="inputControl" 
-                        value={cantidadRaciones} 
-                        onChange={(e) => setCantidadRaciones(e.target.value)} 
-                        placeholder="Ej: 150" 
-                        min="1" 
-                        disabled={procesando} 
+                        className="inputControl"
+                        value={cantidadRaciones}
+                        onChange={(e) => setCantidadRaciones(e.target.value)}
+                        placeholder="Ej: 150"
+                        min="1"
+                        disabled={procesando}
                     />
                 </div>
 
-                {/* Observaciones Generales */}
+                {/* Observaciones */}
                 <div className="formGroup">
                     <label>Observaciones / Detalles de la Jornada:</label>
                     <textarea
-                        className="textareaControl" 
-                        value={observaciones} 
-                        onChange={(e) => setObservaciones(e.target.value)} 
-                        placeholder="Ej: Se cocinó con refuerzo para el personal de guardia médica."
-                        disabled={procesando} 
+                        className="textareaControl"
+                        value={observaciones}
+                        onChange={(e) => setObservaciones(e.target.value)}
+                        placeholder="Ej: Se cocinó con refuerzo..."
+                        disabled={procesando}
                     />
                 </div>
 
-                {/* Botón de acción con bloqueo anti-doble clic */}
-                <button
-                    type="submit"
-                    className="btnPrincipal" 
-                    disabled={procesando} 
-                >
+                <button type="submit" className="btnPrincipal" disabled={procesando}>
                     {procesando ? '🔄 Procesando Descuentos FIFO...' : '🔥 Procesar y Descontar Insumos'}
                 </button>
             </form>
+
+            {/* 🪟 MODAL FLOTANTE DE REGISTRO */}
+            {mostrarModal && (
+                <div className="modalOverlay">
+                    <div className="modalContent">
+                        <h3>➕ Registrar Nuevo Sector o Dieta</h3>
+                        <form onSubmit={handleCrearSector}>
+                            <div className="formGroup">
+                                <label>Nombre del Sector / Destinatario:</label>
+                                <input
+                                    type="text"
+                                    className="inputControl"
+                                    value={nuevoSectorNombre}
+                                    onChange={(e) => setNuevoSectorNombre(e.target.value)}
+                                    placeholder="Ej: Pediatría, Internados Comunes"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="modalAcciones">
+                                <button
+                                    type="button"
+                                    className="btnCancelar"
+                                    onClick={() => { setMostrarModal(false); setNuevoSectorNombre(''); }}
+                                    disabled={guardandoSector}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btnGuardar"
+                                    disabled={guardandoSector || !nuevoSectorNombre.trim()}
+                                >
+                                    {guardandoSector ? 'Guardando...' : 'Guardar Sector'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
