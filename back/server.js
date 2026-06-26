@@ -2,6 +2,7 @@
 import express from 'express';
 import cors from 'cors';
 import sequelize from './config/database.js';
+import "dotenv/config";
 
 // 🎯 IMPORTANTE: Agregamos el modelo 'Usuario' a las importaciones estructurales
 import { Producto, LoteStock, Kardex, PlanillaRacion, Consumo, Menu, MenuIngrediente, Usuario } from "./models/index.js";
@@ -18,8 +19,24 @@ import sectorRoutes from './routes/sector.routes.js';
 
 const app = express();
 
+const allowedOrigins = [process.env.FRONTEND_URL];
 // Middlewares globales
-app.use(cors());
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`No permitido por CORS. Origen: ${origin}`), false);
+        }
+    },
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // CONECTAR LAS RUTAS EN EXPRESS
