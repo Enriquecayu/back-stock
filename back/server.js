@@ -30,9 +30,6 @@ app.use('/api/kardex', kardexRoutes);
 app.use('/api/consumos', consumoRoutes);
 app.use('/api/menus', menuRoutes);
 app.use('/api/planillas', planillaRoutes);
-app.use('/api/usuarios', usuarioRoutes);
-app.use('/api/menus', menuRoutes);
-app.use('/api/planillas', planillaRoutes);
 app.use('/api/sectores', sectorRoutes);
 
 const PORT = process.env.PORT || 3001;
