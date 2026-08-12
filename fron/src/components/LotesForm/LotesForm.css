@@ -1,6 +1,8 @@
 /* Contenedor del Formulario de Entrada de Lotes */
 .lotes-form-container {
     max-width: 500px;
+    width: 100%; /* 👈 Evita desbordes horizontales en pantallas chicas */
+    box-sizing: border-box; /* 👈 Asegura que el padding no rompa el ancho total */
     margin: 30px auto;
     padding: 25px;
     background-color: #ffffff;
@@ -41,6 +43,8 @@
     border-radius: 4px;
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%; /* 👈 Garantiza que los inputs abarquen todo el espacio disponible */
+    box-sizing: border-box; /* 👈 Evita que los bordes y paddings ensanchen de más el input */
 }
 
 .form-input:focus {
@@ -56,6 +60,7 @@
     font-weight: bold;
     margin-bottom: 15px;
     text-align: center;
+    box-sizing: border-box;
 }
 
 .message-alert.success {
@@ -83,6 +88,7 @@
     cursor: pointer;
     transition: background-color 0.2s;
     margin-top: 10px;
+    box-sizing: border-box;
 }
 
 .btn-submit-lote:hover {
@@ -94,3 +100,15 @@
     cursor: not-allowed;
     opacity: 0.7;
 }
+
+/* 📱 Media Query específico para celulares pequeños */
+@media (max-width: 480px) {
+    .lotes-form-container {
+        padding: 15px;
+        margin: 15px auto;
+    }
+
+    .lotes-form-title {
+        font-size: 1.3rem;
+    }
+}   
