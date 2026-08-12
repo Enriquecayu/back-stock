@@ -124,9 +124,16 @@ export const deleteProducto = async (req, res) => {
         const { id } = req.params;
 
         const producto = await Producto.findByPk(id);
-
         if (!producto) {
             return res.status(404).json({ mensaje: 'Producto no encontrado.' });
+        }
+
+        // Validación previa opcional por si quieres contar cuántos lotes vivos hay
+        const lotesVivos = await LoteStock.count({ where: { idProducto: id } });
+        if (lotesVivos > 0) {
+            return res.status(400).json({
+                mensaje: 'No se puede eliminar el producto porque aún posee lotes registrados en el sistema.'
+            });
         }
 
         await producto.destroy();
@@ -134,9 +141,41 @@ export const deleteProducto = async (req, res) => {
         return res.status(200).json({ mensaje: 'Producto eliminado con éxito.' });
     } catch (error) {
         console.error('Error al eliminar producto:', error);
-        return res.status(500).json({
-            mensaje: 'No se puede eliminar el producto porque está asociado a lotes activos o movimientos de stock.'
-        });
+
+        // 🎯 Si choca contra la restricción de la llave foránea en PostgreSQL
+        if (error.name === 'SequelizeDatabaseError' && error.parent.code === '23001') {
+            return res.status(400).json({
+                mensaje: 'No se puede eliminar este producto porque tiene historial de lotes asociados en la base de datos.'
+            });
+        }
+
+        return res.status(500).json({ mensaje: 'Error interno al intentar eliminar el producto.' });
+    }
+};
+
+export const deleteLote = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const lote = await LoteStock.findByPk(id);
+        if (!lote) {
+            return res.status(404).json({ mensaje: 'Lote no encontrado.' });
+        }
+
+        await lote.destroy();
+
+        return res.status(200).json({ mensaje: 'Lote eliminado con éxito.' });
+    } catch (error) {
+        console.error('Error al eliminar lote:', error);
+
+        // 🎯 Detectamos cuando choca contra el Kardex o restricciones de FK
+        if (error.name === 'SequelizeDatabaseError' && error.parent.code === '23001') {
+            return res.status(400).json({
+                mensaje: 'No se puede eliminar este lote porque posee registros históricos de movimientos en el Kardex (auditoría).'
+            });
+        }
+
+        return res.status(500).json({ mensaje: 'Error interno al intentar eliminar el lote.' });
     }
 };
 

@@ -5,8 +5,9 @@ import {
     createProducto,
     updateProducto,
     deleteProducto,
+    deleteLote,
     getCategoriasUnicas,
-    descargarReporteMensualExcel
+    descargarReporteMensualExcel,
 } from '../controllers/producto.controller.js';
 
 // 🎯 CLAVE: Importamos los guardianes de seguridad
@@ -25,5 +26,8 @@ router.get('/reporte-mensual/excel', verificarToken, esAdministrador, descargarR
 // 3. Rutas Dinámicas con Parámetros (SIEMPRE ABAJO DE TODO)
 router.put('/:id', verificarToken, esAdministrador, updateProducto);                        // PUT /api/productos/1
 router.delete('/:id', verificarToken, esAdministrador, deleteProducto);                     // DELETE /api/productos/1
+
+// 🗑️ 4. NUEVA RUTA: Eliminar un lote individual (Protegida por Administrador)
+router.delete('/lotes/:id', verificarToken, esAdministrador, deleteLote);
 
 export default router;

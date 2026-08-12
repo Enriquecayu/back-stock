@@ -38,7 +38,9 @@ const LoteStock = sequelize.define('LoteStock', {
         defaultValue: 0.00
     }
 }, {
-    tableName: 'lotes_stock'
+    tableName: 'lotes_stock',
+    timestamps: true, // ⚠️ Necesario para que Sequelize registre fechas de creación/actualización y borrado
+    paranoid: true    // 👈 Activa el borrado lógico (crea/usa la columna deletedAt)
 });
 
 export default LoteStock;
