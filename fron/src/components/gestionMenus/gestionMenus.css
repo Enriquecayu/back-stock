@@ -1,5 +1,9 @@
 .container {
     max-width: 700px;
+    width: 100%;
+    /* 👈 Evita desbordes en pantallas chicas */
+    box-sizing: border-box;
+    /* 👈 Asegura que los paddings no rompan el ancho */
     margin: 20px auto;
     padding: 25px;
     background-color: #ffffff;
@@ -20,6 +24,7 @@
     margin-bottom: 20px;
     border-radius: 6px;
     font-weight: 500;
+    box-sizing: border-box;
 }
 
 .exito {
@@ -65,6 +70,7 @@
     padding: 15px;
     margin-bottom: 25px;
     background-color: #f9f9f9;
+    box-sizing: border-box;
 }
 
 .fieldset legend {
@@ -81,10 +87,14 @@
 
 .colProducto {
     flex: 2;
+    min-width: 0;
+    /* 👈 Previene desbordes en elementos flexibles */
 }
 
 .colCantidad {
     flex: 1;
+    min-width: 0;
+    /* 👈 Previene desbordes en elementos flexibles */
 }
 
 .btnSecundario {
@@ -103,11 +113,19 @@
     background-color: #0056b3;
 }
 
+/* Contenedor para hacer la tabla responsiva mediante scroll horizontal en celulares */
+.tabla-responsive-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 25px;
+    margin-top: 10px;
+}
+
 .tabla {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 25px;
-    margin-top: 10px;
+    min-width: 450px;
+    /* 👈 Asegura que la tabla no se comprima demasiado */
 }
 
 .tabla th {
@@ -148,8 +166,31 @@
     font-weight: bold;
     cursor: pointer;
     transition: background-color 0.2s;
+    box-sizing: border-box;
 }
 
 .btnPrincipal:hover {
     background-color: #218838;
+}
+
+/* 📱 Media Query para adaptar filas de inputs y márgenes en celulares */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+        margin: 10px auto;
+    }
+
+    .rowInputs {
+        flex-direction: column;
+        /* Apila el campo de producto, cantidad y botón en vertical */
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .btnSecundario {
+        width: 100%;
+        /* El botón secundario ocupa todo el ancho en móvil para facilitar el toque */
+        text-align: center;
+        white-space: normal;
+    }
 }

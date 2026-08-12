@@ -1,5 +1,7 @@
 .export-container {
     max-width: 550px;
+    width: 100%; /* 👈 Añadido para evitar desbordes */
+    box-sizing: border-box; /* 👈 Asegura que el padding no rompa el ancho */
     margin: 40px auto;
     padding: 30px;
     background: #ffffff;
@@ -33,6 +35,7 @@
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    min-width: 0; /* 👈 Evita conflictos de ancho en elementos flexibles */
 }
 
 .export-group label {
@@ -50,6 +53,8 @@
     color: #1e293b;
     outline: none;
     transition: border-color 0.2s ease;
+    width: 100%; /* 👈 Asegura que los selects ocupen todo su espacio disponible */
+    box-sizing: border-box;
 }
 
 .export-select:focus {
@@ -74,6 +79,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease;
+    width: 100%; /* 👈 Garantiza que el botón abarque todo el ancho útil */
 }
 
 .export-btn:hover:not(:disabled) {
@@ -92,6 +98,7 @@
     border-radius: 6px;
     margin-bottom: 16px;
     font-weight: 500;
+    box-sizing: border-box;
 }
 
 .export-mensaje.error {
@@ -104,4 +111,21 @@
     background-color: #f0fdf4;
     border-left: 4px solid #22c55e;
     color: #166534;
+}
+
+/* 📱 Media Query para adaptar las fechas en fila a columnas en celulares */
+@media (max-width: 480px) {
+    .export-container {
+        padding: 15px;
+        margin: 15px auto;
+    }
+
+    .export-row-fechas {
+        flex-direction: column; /* Las fechas (desde/hasta) se apilan en pantallas chicas para que no se compriman mal */
+        gap: 12px;
+    }
+
+    .export-titulo {
+        font-size: 20px;
+    }
 }
