@@ -10,6 +10,14 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     width: 100%;
     box-sizing: border-box;
+    position: relative;
+}
+
+.navbar-header-mobile {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 /* El logo o título de la izquierda */
@@ -19,7 +27,18 @@
     white-space: nowrap;
 }
 
-/* Contenedor de los enlaces */
+/* Botón de las 3 rayitas oculto por defecto en PC */
+.navbar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+/* Contenedor de los enlaces (modo normal PC) */
 .navbar-links {
     list-style: none;
     display: flex;
@@ -39,51 +58,48 @@
     white-space: nowrap;
 }
 
-/* Efecto hover */
 .navbar-links li:hover {
     background-color: rgba(255, 255, 255, 0.15);
 }
 
-/* Botón ACTIVO */
 .navbar-links li.active {
     background-color: #ffffff;
     color: #0056b3;
     font-weight: bold;
 }
 
-/* 📱 FORZAR DISEÑO MÓVIL: Esto se activa en celulares para evitar cortes */
+/* 📱 DISEÑO MÓVIL CON MENÚ DESPLEGABLE DE TRES RAYITAS */
 @media (max-width: 900px) {
     .navbar {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        padding: 12px 10px !important;
-        gap: 10px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px 15px;
     }
 
-    .navbar-logo {
-        text-align: center !important;
-        font-size: 1.1rem !important;
-        white-space: normal !important;
+    .navbar-toggle {
+        display: block; /* Muestra el botón de hamburguesa en celulares */
     }
 
     .navbar-links {
-        display: flex !important;
-        overflow-x: auto !important;
-        padding-bottom: 6px !important;
-        gap: 8px !important;
-        width: 100% !important;
-        scrollbar-width: none !important;
+        display: none; /* Oculta la lista por defecto hasta que se presione el botón */
+        flex-direction: column;
+        width: 100%;
+        margin-top: 12px;
+        gap: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        padding-top: 10px;
     }
 
-    .navbar-links::-webkit-scrollbar {
-        display: none !important;
+    /* Clase que despliega el menú al hacer clic en las rayitas */
+    .navbar-links.open {
+        display: flex !important;
     }
 
     .navbar-links li {
-        padding: 8px 12px !important;
-        font-size: 0.85rem !important;
-        background-color: rgba(255, 255, 255, 0.12) !important;
+        padding: 10px 14px;
+        text-align: left;
+        width: 100%;
+        box-sizing: border-box;
+        background-color: rgba(255, 255, 255, 0.08);
     }
 }
