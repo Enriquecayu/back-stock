@@ -2,6 +2,7 @@
 import Usuario from '../models/Usuario.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import "dotenv/config";
 
 // 🛡️ 1. REGISTRAR UN NUEVO USUARIO (Solo accesible por el Administrador)
 export const registrar = async (req, res) => {
@@ -50,7 +51,32 @@ export const registrar = async (req, res) => {
 // 🔑 2. INICIAR SESIÓN (LOGIN GENERADOR DE TOKEN)
 export const login = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password, tokenTurnstile } = req.body;
+
+        // 1. Validar que llegue el token de seguridad de Cloudflare
+        if (!tokenTurnstile) {
+            return res.status(400).json({ error: 'Falta la verificación de seguridad (Captcha).' });
+        }
+
+        // 2. Verificar el token con la API de Cloudflare
+        const secretKey = process.env.CLOUDFLARE_SECRET_KEY; 
+        const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+        const cloudflareResponse = await fetch(verificationUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                secret: secretKey,
+                response: tokenTurnstile
+            })
+        });
+
+        const cloudflareData = await cloudflareResponse.json();
+
+        // 3. Si Cloudflare rechaza el token, bloqueamos el acceso
+        if (!cloudflareData.success) {
+            return res.status(400).json({ error: 'Falló la verificación del captcha. Inténtalo de nuevo.' });
+        }
 
         if (!username || !password) {
             return res.status(400).json({ error: 'Usuario y contraseña son obligatorios.' });
